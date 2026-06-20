@@ -637,52 +637,73 @@ code.inline {
 /* Plotly override */
 .js-plotly-plot .plotly { border-radius: 12px; }
 
-/* ── Sidebar Collapse / Expand Buttons ── */
-[data-testid="stSidebarCollapseButton"] button,
+/* ── Sidebar Collapse Button (inside sidebar → shows «) ── */
+[data-testid="stSidebarCollapseButton"] button {
+    background: rgba(214,178,94,0.08) !important;
+    border: 1px solid rgba(214,178,94,0.25) !important;
+    border-radius: 8px !important;
+    width: 32px !important; height: 32px !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
+    transition: all 0.2s ease !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+[data-testid="stSidebarCollapseButton"] button:hover {
+    background: rgba(214,178,94,0.18) !important;
+    border-color: rgba(214,178,94,0.55) !important;
+}
+[data-testid="stSidebarCollapseButton"] span[data-testid="stIconMaterial"] {
+    color: transparent !important;
+    font-size: 0px !important;
+}
+[data-testid="stSidebarCollapseButton"] button::after {
+    content: '«' !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    color: #D6B25E !important;
+    font-family: 'Inter', sans-serif !important;
+    line-height: 1 !important;
+    position: absolute !important;
+    top: 50% !important; left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+}
+
+/* ── Sidebar Expand Button (main area when sidebar is collapsed → shows ») ── */
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
 [data-testid="collapsedControl"] button {
     background: rgba(214,178,94,0.08) !important;
     border: 1px solid rgba(214,178,94,0.25) !important;
     border-radius: 8px !important;
-    color: #D6B25E !important;
     width: 32px !important; height: 32px !important;
     display: flex !important; align-items: center !important; justify-content: center !important;
     transition: all 0.2s ease !important;
-}
-[data-testid="stSidebarCollapseButton"] button:hover,
-[data-testid="collapsedControl"] button:hover {
-    background: rgba(214,178,94,0.16) !important;
-    border-color: rgba(214,178,94,0.5) !important;
-}
-/* Hide material icon text */
-[data-testid="stSidebarCollapseButton"] span[data-testid="stIconMaterial"],
-[data-testid="collapsedControl"] span[data-testid="stIconMaterial"] {
-    font-size: 0 !important;
-    visibility: hidden !important;
     position: relative !important;
-}
-/* Show « on the sidebar collapse button */
-[data-testid="stSidebarCollapseButton"] span[data-testid="stIconMaterial"]::before {
-    content: '«' !important;
+    overflow: hidden !important;
     visibility: visible !important;
-    position: absolute !important;
-    font-size: 17px !important;
-    color: #D6B25E !important;
-    font-family: 'Inter', sans-serif !important;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    font-weight: 700 !important;
+    opacity: 1 !important;
 }
-/* Show » on the collapsed expand button */
-[data-testid="collapsedControl"] span[data-testid="stIconMaterial"]::before {
+[data-testid="collapsedControl"] button:hover {
+    background: rgba(214,178,94,0.18) !important;
+    border-color: rgba(214,178,94,0.55) !important;
+}
+[data-testid="collapsedControl"] span[data-testid="stIconMaterial"] {
+    color: transparent !important;
+    font-size: 0px !important;
+}
+[data-testid="collapsedControl"] button::after {
     content: '»' !important;
-    visibility: visible !important;
-    position: absolute !important;
-    font-size: 17px !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
     color: #D6B25E !important;
     font-family: 'Inter', sans-serif !important;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    font-weight: 700 !important;
+    line-height: 1 !important;
+    position: absolute !important;
+    top: 50% !important; left: 50% !important;
+    transform: translate(-50%, -50%) !important;
 }
 
 /* ── Streamlit Tabs — force gold accent, no red ── */
