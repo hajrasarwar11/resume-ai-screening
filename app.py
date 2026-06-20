@@ -668,42 +668,51 @@ code.inline {
     transform: translate(-50%, -50%) !important;
 }
 
-/* ── Sidebar Expand Button (main area when sidebar is collapsed → shows ») ── */
+/* ── Sidebar Expand Button (shown when sidebar is collapsed → ») ── */
 [data-testid="collapsedControl"] {
-    display: flex !important;
+    position: fixed !important;
+    top: 14px !important;
+    left: 10px !important;
+    z-index: 999999 !important;
+    display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
 }
 [data-testid="collapsedControl"] button {
-    background: rgba(214,178,94,0.08) !important;
-    border: 1px solid rgba(214,178,94,0.25) !important;
+    background: rgba(214,178,94,0.12) !important;
+    border: 1px solid rgba(214,178,94,0.4) !important;
     border-radius: 8px !important;
-    width: 32px !important; height: 32px !important;
-    display: flex !important; align-items: center !important; justify-content: center !important;
-    transition: all 0.2s ease !important;
-    position: relative !important;
-    overflow: hidden !important;
+    width: 36px !important;
+    height: 36px !important;
+    cursor: pointer !important;
+    display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
+    position: relative !important;
+    transition: all 0.2s ease !important;
 }
 [data-testid="collapsedControl"] button:hover {
-    background: rgba(214,178,94,0.18) !important;
-    border-color: rgba(214,178,94,0.55) !important;
+    background: rgba(214,178,94,0.25) !important;
+    border-color: rgba(214,178,94,0.7) !important;
+    box-shadow: 0 0 12px rgba(214,178,94,0.2) !important;
 }
-[data-testid="collapsedControl"] span[data-testid="stIconMaterial"] {
-    color: transparent !important;
-    font-size: 0px !important;
+/* Hide all default icon content inside the button */
+[data-testid="collapsedControl"] button > * {
+    display: none !important;
 }
+/* Show » via pseudo-element */
 [data-testid="collapsedControl"] button::after {
     content: '»' !important;
+    display: block !important;
     font-size: 18px !important;
     font-weight: 700 !important;
     color: #D6B25E !important;
     font-family: 'Inter', sans-serif !important;
-    line-height: 1 !important;
-    position: absolute !important;
-    top: 50% !important; left: 50% !important;
-    transform: translate(-50%, -50%) !important;
+    text-align: center !important;
+    line-height: 36px !important;
+    width: 100% !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* ── Streamlit Tabs — force gold accent, no red ── */
@@ -741,6 +750,58 @@ code.inline {
 }
 </style>
 """, unsafe_allow_html=True)
+
+# ── Sidebar button JS fix via components (accesses parent DOM) ──
+import streamlit.components.v1 as components
+components.html("""
+<script>
+(function() {
+    var doc = window.parent.document;
+    function fixSidebarButtons() {
+        // Fix collapse button (« inside sidebar)
+        var colBtn = doc.querySelector('[data-testid="stSidebarCollapseButton"] button');
+        if (colBtn) {
+            var colSpan = colBtn.querySelector('[data-testid="stIconMaterial"]');
+            if (colSpan) colSpan.style.cssText = 'font-size:0!important;color:transparent!important;visibility:hidden!important;';
+            colBtn.style.background = 'rgba(214,178,94,0.12)';
+            colBtn.style.border = '1px solid rgba(214,178,94,0.4)';
+            colBtn.style.borderRadius = '8px';
+            colBtn.style.position = 'relative';
+            if (!colBtn.querySelector('.sb-arrow-col')) {
+                var a = doc.createElement('span');
+                a.className = 'sb-arrow-col';
+                a.textContent = '\u00AB';
+                a.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;font-weight:700;color:#D6B25E;pointer-events:none;line-height:1;z-index:10;';
+                colBtn.appendChild(a);
+            }
+        }
+        // Fix expand button (» shown when sidebar is collapsed)
+        var expBtn = doc.querySelector('[data-testid="collapsedControl"] button');
+        if (expBtn) {
+            var expSpan = expBtn.querySelector('[data-testid="stIconMaterial"]');
+            if (expSpan) expSpan.style.cssText = 'font-size:0!important;color:transparent!important;visibility:hidden!important;';
+            expBtn.style.background = 'rgba(214,178,94,0.12)';
+            expBtn.style.border = '1px solid rgba(214,178,94,0.4)';
+            expBtn.style.borderRadius = '8px';
+            expBtn.style.position = 'relative';
+            expBtn.style.width = '36px';
+            expBtn.style.height = '36px';
+            if (!expBtn.querySelector('.sb-arrow-exp')) {
+                var b = doc.createElement('span');
+                b.className = 'sb-arrow-exp';
+                b.textContent = '\u00BB';
+                b.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;font-weight:700;color:#D6B25E;pointer-events:none;line-height:1;z-index:10;';
+                expBtn.appendChild(b);
+            }
+        }
+    }
+    fixSidebarButtons();
+    setInterval(fixSidebarButtons, 400);
+    var obs = new MutationObserver(fixSidebarButtons);
+    obs.observe(doc.body, {childList: true, subtree: true});
+})();
+</script>
+""", height=0)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MODEL & DATA LOADING
