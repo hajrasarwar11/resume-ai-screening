@@ -668,43 +668,41 @@ code.inline {
     transform: translate(-50%, -50%) !important;
 }
 
-/* ── Sidebar Expand Button (shown when sidebar is collapsed) ── */
+/* ── Sidebar Expand Button (collapsedControl) — styled directly, fully clickable ── */
 [data-testid="collapsedControl"] {
     position: fixed !important;
     top: 12px !important;
     left: 12px !important;
-    z-index: 2147483647 !important;
+    z-index: 99999 !important;
     opacity: 1 !important;
     visibility: visible !important;
     pointer-events: auto !important;
+    display: block !important;
 }
 [data-testid="collapsedControl"] button {
-    background: rgba(214,178,94,0.18) !important;
-    border: 2px solid #D6B25E !important;
+    background: rgba(214,178,94,0.15) !important;
+    border: 1px solid rgba(214,178,94,0.55) !important;
     border-radius: 8px !important;
     width: 38px !important;
     height: 38px !important;
-    min-width: 38px !important;
-    min-height: 38px !important;
     cursor: pointer !important;
     opacity: 1 !important;
-    visibility: visible !important;
+    pointer-events: auto !important;
     color: #D6B25E !important;
     font-size: 20px !important;
     font-weight: 700 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 0 !important;
 }
 [data-testid="collapsedControl"] button:hover {
-    background: rgba(214,178,94,0.35) !important;
-    box-shadow: 0 0 14px rgba(214,178,94,0.35) !important;
+    background: rgba(214,178,94,0.30) !important;
+    border-color: rgba(214,178,94,0.8) !important;
+    box-shadow: 0 0 12px rgba(214,178,94,0.25) !important;
 }
-/* Force all children to be visible and gold */
-[data-testid="collapsedControl"] button svg { display: none !important; }
-[data-testid="collapsedControl"] button span {
+[data-testid="collapsedControl"] button span[data-testid="stIconMaterial"] {
     color: #D6B25E !important;
+    font-family: 'Inter', sans-serif !important;
     font-size: 20px !important;
     font-weight: 700 !important;
     visibility: visible !important;
@@ -747,103 +745,35 @@ code.inline {
 </style>
 """, unsafe_allow_html=True)
 
-# ── Custom sidebar toggle — inject real button into parent DOM via JS ──
+# ── Sidebar icon text patch: change material icons to «/» via JS ──
 import streamlit.components.v1 as components
 components.html("""
 <script>
 (function() {
     var doc = window.parent.document;
 
-    function injectExpandBtn() {
-        if (doc.getElementById('ar-expand-btn')) return;
-        var btn = doc.createElement('button');
-        btn.id = 'ar-expand-btn';
-        btn.textContent = '\u00BB';
-        btn.title = 'Open Sidebar';
-        /* Individual style props — !important does NOT work in inline styles */
-        btn.style.position   = 'fixed';
-        btn.style.top        = '12px';
-        btn.style.left       = '12px';
-        btn.style.zIndex     = '9999999';
-        btn.style.width      = '38px';
-        btn.style.height     = '38px';
-        btn.style.background = 'rgba(214,178,94,0.15)';
-        btn.style.border     = '1px solid rgba(214,178,94,0.55)';
-        btn.style.borderRadius = '8px';
-        btn.style.color      = '#D6B25E';
-        btn.style.fontSize   = '20px';
-        btn.style.fontWeight = '700';
-        btn.style.cursor     = 'pointer';
-        btn.style.display    = 'none';
-        btn.style.alignItems = 'center';
-        btn.style.justifyContent = 'center';
-        btn.style.lineHeight = '38px';
-        btn.style.textAlign  = 'center';
-        btn.style.fontFamily = 'Inter, sans-serif';
-        btn.style.boxShadow  = '0 2px 12px rgba(214,178,94,0.2)';
-        btn.style.transition = 'background 0.2s, border-color 0.2s';
-
-        btn.onmouseover = function() {
-            btn.style.background   = 'rgba(214,178,94,0.30)';
-            btn.style.borderColor  = 'rgba(214,178,94,0.80)';
-        };
-        btn.onmouseout = function() {
-            btn.style.background   = 'rgba(214,178,94,0.15)';
-            btn.style.borderColor  = 'rgba(214,178,94,0.55)';
-        };
-        btn.onclick = function() {
-            /* Click Streamlit's real hidden expand button */
-            var real = doc.querySelector('[data-testid="collapsedControl"] button');
-            if (real) { real.click(); }
-        };
-        doc.body.appendChild(btn);
+    function patchIcons() {
+        /* Collapse button inside sidebar — show « */
+        var colIcon = doc.querySelector('[data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"]');
+        if (colIcon && colIcon.textContent !== '\u00AB') {
+            colIcon.textContent = '\u00AB';
+            var cb = colIcon.closest('button');
+            if (cb) {
+                cb.style.background    = 'rgba(214,178,94,0.15)';
+                cb.style.border        = '1px solid rgba(214,178,94,0.55)';
+                cb.style.borderRadius  = '8px';
+            }
+        }
+        /* Expand button shown when sidebar collapsed — show » */
+        var expIcon = doc.querySelector('[data-testid="collapsedControl"] [data-testid="stIconMaterial"]');
+        if (expIcon && expIcon.textContent !== '\u00BB') {
+            expIcon.textContent = '\u00BB';
+        }
     }
 
-    function patchCollapseBtn() {
-        var cb = doc.querySelector('[data-testid="stSidebarCollapseButton"] button');
-        if (!cb || cb.dataset.arPatched) return;
-        cb.dataset.arPatched = '1';
-        /* Replace material icon text with « */
-        var icon = cb.querySelector('[data-testid="stIconMaterial"]');
-        if (icon) { icon.textContent = '\u00AB'; }
-        cb.style.background   = 'rgba(214,178,94,0.18)';
-        cb.style.border       = '2px solid #D6B25E';
-        cb.style.borderRadius = '8px';
-    }
-
-    function patchExpandBtn() {
-        /* Patch Streamlit's real collapsedControl button text too */
-        var eb = doc.querySelector('[data-testid="collapsedControl"] button');
-        if (!eb || eb.dataset.arPatched) return;
-        eb.dataset.arPatched = '1';
-        var icon = eb.querySelector('[data-testid="stIconMaterial"]');
-        if (icon) { icon.textContent = '\u00BB'; }
-        eb.style.background   = 'rgba(214,178,94,0.18)';
-        eb.style.border       = '2px solid #D6B25E';
-        eb.style.borderRadius = '8px';
-    }
-
-    function tick() {
-        injectExpandBtn();
-        patchCollapseBtn();
-        patchExpandBtn();
-        var btn = doc.getElementById('ar-expand-btn');
-        if (!btn) return;
-        /* Detect collapsed state via multiple methods */
-        var hasCollapsedControl = !!doc.querySelector('[data-testid="collapsedControl"]');
-        var sidebar = doc.querySelector('[data-testid="stSidebar"]');
-        var sidebarCollapsed = sidebar && (
-            sidebar.getAttribute('aria-expanded') === 'false' ||
-            sidebar.classList.contains('st-emotion-cache-collapsed') ||
-            sidebar.offsetWidth < 10
-        );
-        var isCollapsed = hasCollapsedControl || sidebarCollapsed;
-        btn.style.display = isCollapsed ? 'flex' : 'none';
-    }
-
-    tick();
-    setInterval(tick, 350);
-    new MutationObserver(tick).observe(doc.body, {childList: true, subtree: true});
+    patchIcons();
+    setInterval(patchIcons, 300);
+    new MutationObserver(patchIcons).observe(doc.body, {childList: true, subtree: true});
 })();
 </script>
 """, height=0)
