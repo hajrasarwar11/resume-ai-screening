@@ -1,0 +1,6 @@
+data/cleaned_jobs_data.csv filter=lfs diff=lfs merge=lfs -text
+data/processed_jobs.csv filter=lfs diff=lfs merge=lfs -text
+models/random_forest_pipeline.pkl filter=lfs diff=lfs merge=lfs -text
+models/random_forest_tuned_gridsearch.pkl filter=lfs diff=lfs merge=lfs -text
+outputs/final_jobs_data.csv filter=lfs diff=lfs merge=lfs -text
+zipFile.zip filter=lfs diff=lfs merge=lfs -text
