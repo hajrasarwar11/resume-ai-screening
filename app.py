@@ -637,6 +637,54 @@ code.inline {
 /* Plotly override */
 .js-plotly-plot .plotly { border-radius: 12px; }
 
+/* ── Sidebar Collapse / Expand Buttons ── */
+[data-testid="stSidebarCollapseButton"] button,
+[data-testid="collapsedControl"] button {
+    background: rgba(214,178,94,0.08) !important;
+    border: 1px solid rgba(214,178,94,0.25) !important;
+    border-radius: 8px !important;
+    color: #D6B25E !important;
+    width: 32px !important; height: 32px !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
+    transition: all 0.2s ease !important;
+}
+[data-testid="stSidebarCollapseButton"] button:hover,
+[data-testid="collapsedControl"] button:hover {
+    background: rgba(214,178,94,0.16) !important;
+    border-color: rgba(214,178,94,0.5) !important;
+}
+/* Hide material icon text */
+[data-testid="stSidebarCollapseButton"] span[data-testid="stIconMaterial"],
+[data-testid="collapsedControl"] span[data-testid="stIconMaterial"] {
+    font-size: 0 !important;
+    visibility: hidden !important;
+    position: relative !important;
+}
+/* Show « on the sidebar collapse button */
+[data-testid="stSidebarCollapseButton"] span[data-testid="stIconMaterial"]::before {
+    content: '«' !important;
+    visibility: visible !important;
+    position: absolute !important;
+    font-size: 17px !important;
+    color: #D6B25E !important;
+    font-family: 'Inter', sans-serif !important;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: 700 !important;
+}
+/* Show » on the collapsed expand button */
+[data-testid="collapsedControl"] span[data-testid="stIconMaterial"]::before {
+    content: '»' !important;
+    visibility: visible !important;
+    position: absolute !important;
+    font-size: 17px !important;
+    color: #D6B25E !important;
+    font-family: 'Inter', sans-serif !important;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: 700 !important;
+}
+
 /* ── Streamlit Tabs — force gold accent, no red ── */
 [data-testid="stTabs"] [data-baseweb="tab-list"] {
     background: transparent !important;
@@ -743,6 +791,44 @@ if 'resume' in data:
 
 model_count = len([k for k in ['svm','rf','lr','xgb'] if k in models])
 data_loaded = 'resume' in data
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HELPER — build a single-row DataFrame from raw resume text
+# All pipelines use a ColumnTransformer that needs these exact columns.
+# ─────────────────────────────────────────────────────────────────────────────
+import re as _re
+
+def build_input_df(text: str) -> "pd.DataFrame":
+    text_lower = text.lower()
+    # Experience years — find first number followed by "year" / "yr"
+    exp_match = _re.search(r'(\d+)\s*(?:\+\s*)?(?:year|yr)', text_lower)
+    exp_years = float(exp_match.group(1)) if exp_match else 0.0
+    # Skill count — match against common vocab
+    _vocab = [
+        "python","java","sql","javascript","r","c++","machine learning",
+        "deep learning","tensorflow","pytorch","aws","azure","docker",
+        "kubernetes","git","linux","excel","tableau","power bi","spark",
+        "hadoop","react","node","django","flask","spring","nlp",
+        "computer vision","data analysis","mongodb","postgresql","mysql",
+        "redis","kafka","airflow","scala","php","swift","kotlin",
+        "android","ios","typescript"
+    ]
+    skill_cnt = sum(1 for s in _vocab if s in text_lower)
+    # Education level — 0=HS, 1=Bachelor, 2=Master, 3=PhD
+    if any(w in text_lower for w in ["phd","ph.d","doctorate"]):
+        edu = 3
+    elif any(w in text_lower for w in ["master","msc","m.sc","mba","m.s."]):
+        edu = 2
+    elif any(w in text_lower for w in ["bachelor","bsc","b.sc","b.e","b.tech","be ","bs "]):
+        edu = 1
+    else:
+        edu = 0
+    return pd.DataFrame({
+        'clean_text'       : [text],
+        'Experience Years' : [exp_years],
+        'skill_count'      : [float(skill_cnt)],
+        'education_level'  : [float(edu)],
+    })
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SIDEBAR
@@ -962,7 +1048,7 @@ if page == "🏠 Home":
     ov1, ov2 = st.columns(2, gap="medium")
     with ov1:
         st.markdown("""
-        <div class='glass-card' style='margin-bottom:16px;min-height:180px;'>
+        <div class='glass-card' style='margin-bottom:16px;min-height:220px;'>
             <div class='section-eyebrow' style='margin-bottom:8px;'>Problem Statement</div>
             <div style='font-family:Playfair Display,serif;font-size:1.02rem;font-weight:600;
                         color:#F0EDE6;margin-bottom:10px;'>The Recruitment Bottleneck</div>
@@ -974,7 +1060,7 @@ if page == "🏠 Home":
         </div>
         """, unsafe_allow_html=True)
         st.markdown("""
-        <div class='glass-card' style='margin-bottom:16px;min-height:180px;'>
+        <div class='glass-card' style='margin-bottom:16px;min-height:220px;'>
             <div class='section-eyebrow' style='margin-bottom:8px;'>Automation Benefits</div>
             <div style='font-family:Playfair Display,serif;font-size:1.02rem;font-weight:600;
                         color:#F0EDE6;margin-bottom:10px;'>Why This Matters</div>
@@ -989,7 +1075,7 @@ if page == "🏠 Home":
         """, unsafe_allow_html=True)
     with ov2:
         st.markdown("""
-        <div class='glass-card' style='margin-bottom:16px;min-height:180px;'>
+        <div class='glass-card' style='margin-bottom:16px;min-height:220px;'>
             <div class='section-eyebrow' style='margin-bottom:8px;'>Objectives</div>
             <div style='font-family:Playfair Display,serif;font-size:1.02rem;font-weight:600;
                         color:#F0EDE6;margin-bottom:10px;'>What We Set Out to Build</div>
@@ -1004,7 +1090,7 @@ if page == "🏠 Home":
         </div>
         """, unsafe_allow_html=True)
         st.markdown("""
-        <div class='glass-card' style='margin-bottom:16px;min-height:180px;'>
+        <div class='glass-card' style='margin-bottom:16px;min-height:220px;'>
             <div class='section-eyebrow' style='margin-bottom:8px;'>Expected Outcomes</div>
             <div style='font-family:Playfair Display,serif;font-size:1.02rem;font-weight:600;
                         color:#F0EDE6;margin-bottom:10px;'>Measurable Deliverables</div>
@@ -1147,8 +1233,9 @@ elif page == "🧠 Resume Intelligence":
                     with st.spinner("Analysing..."):
                         try:
                             mdl       = models[best_key]
-                            pred_enc  = mdl.predict([resume_text])[0]
-                            pred_prob = mdl.predict_proba([resume_text])[0]
+                            input_df  = build_input_df(resume_text)
+                            pred_enc  = mdl.predict(input_df)[0]
+                            pred_prob = mdl.predict_proba(input_df)[0]
                             conf      = pred_prob.max() * 100
                             role      = CATEGORY_MAP.get(pred_enc, f"Category {pred_enc}")
                             top5_idx  = np.argsort(pred_prob)[::-1][:5]
@@ -1162,10 +1249,10 @@ elif page == "🧠 Resume Intelligence":
                                 "Keyword density":    len(resume_text.split()) > 100,
                             }
                             ats_score = int(sum(ats_checks.values()) / len(ats_checks) * 100)
-                            ats_color = "#D6B25E" if ats_score >= 80 else "#8C7A5B" if ats_score >= 60 else "#C0392B"
+                            ats_color = "#D6B25E" if ats_score >= 80 else "#8C7A5B" if ats_score >= 60 else "#6B6560"
                             ats_rows_html = "".join(
                                 "<div style='font-size:11px;color:{};'>{} {}</div>".format(
-                                    "#D6B25E" if v else "#C0392B", "✓" if v else "✗", k
+                                    "#D6B25E" if v else "#6B6560", "✓" if v else "✗", k
                                 ) for k, v in ats_checks.items()
                             )
 
@@ -1256,8 +1343,9 @@ elif page == "🧠 Resume Intelligence":
                             if not txt.strip():
                                 batch_results.append({"File": pdf_file.name, "Predicted Role": "Unreadable", "Confidence %": 0, "ATS Score %": 0, "Word Count": 0})
                                 continue
-                            enc_b  = mdl_b.predict([txt])[0]
-                            prob_b = mdl_b.predict_proba([txt])[0]
+                            input_df_b = build_input_df(txt)
+                            enc_b  = mdl_b.predict(input_df_b)[0]
+                            prob_b = mdl_b.predict_proba(input_df_b)[0]
                             conf_b = round(float(prob_b.max()) * 100, 1)
                             role_b = CATEGORY_MAP.get(enc_b, "Unknown")
                             tl     = txt.lower()
@@ -1310,8 +1398,9 @@ elif page == "🧠 Resume Intelligence":
                         mdl_cv = models[best_key]
                         cv_results = {}
                         for lbl_cv, txt_cv in [("A", cv_a), ("B", cv_b)]:
-                            enc_cv  = mdl_cv.predict([txt_cv])[0]
-                            prob_cv = mdl_cv.predict_proba([txt_cv])[0]
+                            input_df_cv = build_input_df(txt_cv)
+                            enc_cv  = mdl_cv.predict(input_df_cv)[0]
+                            prob_cv = mdl_cv.predict_proba(input_df_cv)[0]
                             conf_cv = float(prob_cv.max()) * 100
                             role_cv = CATEGORY_MAP.get(enc_cv, "Unknown")
                             tl_cv   = txt_cv.lower()
@@ -1335,15 +1424,15 @@ elif page == "🧠 Resume Intelligence":
                         winner    = "A" if overall_a > overall_b else ("B" if overall_b > overall_a else "Tie")
 
                         shared_html = " ".join("<span style='background:rgba(214,178,94,0.12);color:#D6B25E;padding:2px 7px;border-radius:4px;font-size:11px;'>" + s + "</span>" for s in shared) or "<span style='color:#6B6560;font-size:11px;'>None</span>"
-                        only_a_html = " ".join("<span style='background:rgba(46,204,113,0.1);color:#2ECC71;padding:2px 7px;border-radius:4px;font-size:11px;'>" + s + "</span>" for s in only_a) or "<span style='color:#6B6560;font-size:11px;'>—</span>"
-                        only_b_html = " ".join("<span style='background:rgba(52,152,219,0.1);color:#3498DB;padding:2px 7px;border-radius:4px;font-size:11px;'>" + s + "</span>" for s in only_b) or "<span style='color:#6B6560;font-size:11px;'>—</span>"
+                        only_a_html = " ".join("<span style='background:rgba(214,178,94,0.10);color:#D6B25E;padding:2px 7px;border-radius:4px;font-size:11px;'>" + s + "</span>" for s in only_a) or "<span style='color:#6B6560;font-size:11px;'>—</span>"
+                        only_b_html = " ".join("<span style='background:rgba(140,122,91,0.15);color:#A89F92;padding:2px 7px;border-radius:4px;font-size:11px;'>" + s + "</span>" for s in only_b) or "<span style='color:#6B6560;font-size:11px;'>—</span>"
 
                         cmp_l, cmp_r = st.columns(2, gap="large")
                         for cmp_col, lbl_c, r_c in [(cmp_l, "A", ra), (cmp_r, "B", rb)]:
                             is_winner  = winner == lbl_c
                             border_s   = "border-color:rgba(214,178,94,0.5);background:rgba(214,178,94,0.04);" if is_winner else ""
                             badge_s    = " · ★ Stronger" if is_winner else ""
-                            ats_c_col  = "#D6B25E" if r_c["ats"] >= 80 else ("#8C7A5B" if r_c["ats"] >= 60 else "#C0392B")
+                            ats_c_col  = "#D6B25E" if r_c["ats"] >= 80 else ("#8C7A5B" if r_c["ats"] >= 60 else "#6B6560")
                             conf_c_col = "#D6B25E" if r_c["conf"] >= 80 else "#8C7A5B"
                             with cmp_col:
                                 card_html = (
@@ -1363,11 +1452,11 @@ elif page == "🧠 Resume Intelligence":
                         st.markdown("<div style='font-size:11px;color:#8C7A5B;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;'>Skill Comparison</div>", unsafe_allow_html=True)
                         sk_l, sk_c, sk_r = st.columns(3)
                         with sk_l:
-                            st.markdown("<div style='font-size:11px;color:#2ECC71;margin-bottom:6px;font-weight:600;'>Only in A (" + str(len(only_a)) + ")</div>" + only_a_html, unsafe_allow_html=True)
+                            st.markdown("<div style='font-size:11px;color:#D6B25E;margin-bottom:6px;font-weight:600;'>Only in A (" + str(len(only_a)) + ")</div>" + only_a_html, unsafe_allow_html=True)
                         with sk_c:
-                            st.markdown("<div style='font-size:11px;color:#D6B25E;margin-bottom:6px;font-weight:600;'>Shared (" + str(len(shared)) + ")</div>" + shared_html, unsafe_allow_html=True)
+                            st.markdown("<div style='font-size:11px;color:#A89F92;margin-bottom:6px;font-weight:600;'>Shared (" + str(len(shared)) + ")</div>" + shared_html, unsafe_allow_html=True)
                         with sk_r:
-                            st.markdown("<div style='font-size:11px;color:#3498DB;margin-bottom:6px;font-weight:600;'>Only in B (" + str(len(only_b)) + ")</div>" + only_b_html, unsafe_allow_html=True)
+                            st.markdown("<div style='font-size:11px;color:#8C7A5B;margin-bottom:6px;font-weight:600;'>Only in B (" + str(len(only_b)) + ")</div>" + only_b_html, unsafe_allow_html=True)
 
                         if winner != "Tie":
                             st.markdown("<br>", unsafe_allow_html=True)
@@ -1464,8 +1553,9 @@ elif page == "⚙️ ML Models":
                 if mk in models:
                     try:
                         m = models[mk]
-                        enc  = m.predict([lc_text])[0]
-                        prob = m.predict_proba([lc_text])[0]
+                        input_df_lc = build_input_df(lc_text)
+                        enc  = m.predict(input_df_lc)[0]
+                        prob = m.predict_proba(input_df_lc)[0]
                         rows.append({
                             "Model": mname,
                             "Predicted Role": CATEGORY_MAP.get(enc, f"Cat {enc}"),
@@ -1805,7 +1895,7 @@ elif page == "💼 Recommendation Engine":
                                     best_sent = sent
 
                             shared_html = " ".join(f"<span style='background:rgba(214,178,94,0.12);color:#D6B25E;padding:2px 7px;border-radius:4px;font-size:10px;'>{k}</span>" for k in shared_kws) if shared_kws else "<span style='color:#6B6560;font-size:11px;'>—</span>"
-                            missing_html = " ".join(f"<span style='border:1px solid rgba(192,57,43,0.5);color:#C0392B;padding:2px 7px;border-radius:4px;font-size:10px;'>{s}</span>" for s in missing_skills[:5]) if missing_skills else "<span style='color:#D6B25E;font-size:11px;'>✓ All key skills present</span>"
+                            missing_html = " ".join(f"<span style='border:1px solid rgba(140,122,91,0.4);color:#8C7A5B;padding:2px 7px;border-radius:4px;font-size:10px;'>{s}</span>" for s in missing_skills[:5]) if missing_skills else "<span style='color:#D6B25E;font-size:11px;'>✓ All key skills present</span>"
 
                             with st.expander(f"#{rank}  {row['Category']}  ·  {row['Match %']:.1f}% match  ·  {row['Experience Years']}y exp", expanded=(rank==1)):
                                 st.markdown(f"""
@@ -2072,7 +2162,7 @@ elif page == "📈 Performance Metrics":
         sort_idx    = np.argsort(f1_scores)
         sorted_cats = [all_cats_pm[i] for i in sort_idx]
         sorted_f1   = f1_scores[sort_idx]
-        bar_colors  = ["#C0392B" if v < 0.85 else "#8C7A5B" if v < 0.93 else "#D6B25E" for v in sorted_f1]
+        bar_colors  = ["#6B6560" if v < 0.85 else "#8C7A5B" if v < 0.93 else "#D6B25E" for v in sorted_f1]
 
         fig_pc = go.Figure(go.Bar(
             x=sorted_f1, y=sorted_cats, orientation='h',
@@ -2091,7 +2181,7 @@ elif page == "📈 Performance Metrics":
         <div style='font-size:12px;color:#6B6560;margin-top:8px;'>
             <span style='color:#D6B25E;'>■</span> F1 ≥ 0.93 — Strong &nbsp;
             <span style='color:#8C7A5B;'>■</span> F1 0.85–0.93 — Moderate &nbsp;
-            <span style='color:#C0392B;'>■</span> F1 &lt; 0.85 — Needs Review
+            <span style='color:#6B6560;'>■</span> F1 &lt; 0.85 — Needs Review
         </div>
         """, unsafe_allow_html=True)
 
