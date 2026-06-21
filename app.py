@@ -846,6 +846,9 @@ if 'resume' in data:
 model_count = len([k for k in ['svm','rf','lr','xgb'] if k in models])
 data_loaded = 'resume' in data
 
+if 'resume_history' not in st.session_state:
+    st.session_state.resume_history = []
+
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPER — build a single-row DataFrame from raw resume text
 # All pipelines use a ColumnTransformer that needs these exact columns.
@@ -1211,8 +1214,8 @@ elif page == "🧠 Resume Intelligence":
 
     best_key = next((k for k in ['svm', 'rf', 'lr', 'xgb'] if k in models), None)
 
-    ri_tab1, ri_tab2, ri_tab3, ri_tab4 = st.tabs([
-        "🧬  NLP Pipeline", "🔍  Single Screener", "📦  Batch Upload", "🔄  CV Compare"
+    ri_tab1, ri_tab2, ri_tab3, ri_tab4, ri_tab5 = st.tabs([
+        "🧬  NLP Pipeline", "🔍  Single Screener", "📦  Batch Upload", "🔄  CV Compare", "📜  History"
     ])
 
     with ri_tab1:
@@ -1351,6 +1354,38 @@ elif page == "🧠 Resume Intelligence":
                                     for q in iq_list
                                 )
                                 st.markdown(iq_html, unsafe_allow_html=True)
+
+                                import datetime as _dt
+                                text_lower_h = resume_text.lower()
+                                skills_h = [s for s in [
+                                    "python","java","sql","javascript","r","c++","machine learning",
+                                    "deep learning","tensorflow","pytorch","aws","azure","docker",
+                                    "kubernetes","git","linux","excel","tableau","power bi","spark",
+                                    "hadoop","react","node","django","flask","spring","nlp",
+                                    "computer vision","data analysis","mongodb","postgresql","mysql",
+                                    "redis","kafka","airflow","scala","php","swift","kotlin",
+                                    "android","ios","typescript"
+                                ] if s in text_lower_h]
+                                top5_saved = [
+                                    {"role": CATEGORY_MAP.get(i, f"Cat {i}"), "prob": round(float(pred_prob[i]) * 100, 1)}
+                                    for i in top5_idx
+                                ]
+                                entry = {
+                                    "id": len(st.session_state.resume_history) + 1,
+                                    "label": f"Resume #{len(st.session_state.resume_history) + 1}",
+                                    "timestamp": _dt.datetime.now().strftime("%H:%M:%S"),
+                                    "role": role,
+                                    "conf": round(conf, 1),
+                                    "ats": ats_score,
+                                    "model": best_key.upper(),
+                                    "words": len(resume_text.split()),
+                                    "skills": skills_h,
+                                    "top5": top5_saved,
+                                    "text": resume_text[:2000],
+                                }
+                                existing_texts = [h["text"][:200] for h in st.session_state.resume_history]
+                                if resume_text[:200] not in existing_texts:
+                                    st.session_state.resume_history.append(entry)
 
                         except Exception as e:
                             st.error(f"Classification error: {e}")
@@ -1535,6 +1570,144 @@ elif page == "🧠 Resume Intelligence":
                     <div style='font-size:13px;'>Paste two resumes above and click Compare Candidates</div>
                 </div>
                 """, unsafe_allow_html=True)
+
+    with ri_tab5:
+        history = st.session_state.resume_history
+        if not history:
+            st.markdown("""
+            <div style='text-align:center;padding:80px 20px;color:#6B6560;'>
+                <div style='font-size:2.5rem;margin-bottom:16px;opacity:0.3;'>📜</div>
+                <div style='font-family:serif;font-size:1rem;font-weight:600;
+                            color:#8C7A5B;margin-bottom:8px;'>No History Yet</div>
+                <div style='font-size:13px;'>Classify a resume in Single Screener — it will be saved here automatically.</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            h_col_hdr, h_col_btn = st.columns([3, 1])
+            with h_col_hdr:
+                st.markdown(
+                    f"<div style='font-size:12px;color:#8C7A5B;padding-top:6px;'>"
+                    f"<span style='color:#D6B25E;font-weight:600;'>{len(history)}</span> resume(s) analysed this session</div>",
+                    unsafe_allow_html=True
+                )
+            with h_col_btn:
+                if st.button("🗑 Clear History", key="clear_history"):
+                    st.session_state.resume_history = []
+                    st.rerun()
+
+            st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
+
+            # ── Summary comparison table ──
+            st.markdown(
+                "<div style='font-size:11px;color:#8C7A5B;text-transform:uppercase;"
+                "letter-spacing:2px;margin-bottom:10px;'>Session Summary</div>",
+                unsafe_allow_html=True
+            )
+            header_cols = ["#", "Time", "Predicted Role", "Confidence", "ATS Score", "Skills Found", "Words"]
+            hdr_html = "".join(
+                f"<th style='padding:9px 14px;text-align:left;font-size:10px;"
+                f"text-transform:uppercase;letter-spacing:1.5px;"
+                f"color:rgba(214,178,94,0.6);border-bottom:1px solid rgba(214,178,94,0.15);'>{c}</th>"
+                for c in header_cols
+            )
+            rows_html = ""
+            for h in reversed(history):
+                conf_col = "#D6B25E" if h["conf"] >= 80 else "#8C7A5B"
+                ats_col  = "#D6B25E" if h["ats"] >= 80 else "#8C7A5B"
+                skills_txt = ", ".join(h["skills"][:5]) + ("…" if len(h["skills"]) > 5 else "") if h["skills"] else "—"
+                rows_html += (
+                    f"<tr style='border-bottom:1px solid rgba(214,178,94,0.06);'>"
+                    f"<td style='padding:10px 14px;font-size:12px;color:#8C7A5B;'>{h['id']}</td>"
+                    f"<td style='padding:10px 14px;font-size:12px;color:#A89F92;'>{h['timestamp']}</td>"
+                    f"<td style='padding:10px 14px;font-size:13px;color:#F0EDE6;font-weight:500;'>{h['role']}</td>"
+                    f"<td style='padding:10px 14px;font-size:13px;color:{conf_col};font-weight:600;'>{h['conf']}%</td>"
+                    f"<td style='padding:10px 14px;font-size:13px;color:{ats_col};font-weight:600;'>{h['ats']}%</td>"
+                    f"<td style='padding:10px 14px;font-size:11px;color:#A89F92;'>{skills_txt}</td>"
+                    f"<td style='padding:10px 14px;font-size:12px;color:#A89F92;'>{h['words']:,}</td>"
+                    f"</tr>"
+                )
+            st.markdown(
+                f"<div style='background:rgba(255,255,255,0.02);border:1px solid rgba(214,178,94,0.12);"
+                f"border-radius:10px;overflow:auto;margin-bottom:24px;'>"
+                f"<table style='width:100%;border-collapse:collapse;'>"
+                f"<thead><tr>{hdr_html}</tr></thead>"
+                f"<tbody>{rows_html}</tbody></table></div>",
+                unsafe_allow_html=True
+            )
+
+            # ── Individual cards ──
+            st.markdown(
+                "<div style='font-size:11px;color:#8C7A5B;text-transform:uppercase;"
+                "letter-spacing:2px;margin-bottom:14px;'>Detailed Results</div>",
+                unsafe_allow_html=True
+            )
+            for h in reversed(history):
+                conf_c = "#D6B25E" if h["conf"] >= 80 else "#8C7A5B"
+                ats_c  = "#D6B25E" if h["ats"] >= 80 else "#8C7A5B"
+                with st.expander(f"#{h['id']} · {h['role']} · {h['conf']}% confidence · {h['timestamp']}", expanded=False):
+                    d_left, d_right = st.columns([1, 1], gap="large")
+                    with d_left:
+                        st.markdown(
+                            f"<div style='background:rgba(255,255,255,0.03);border:1px solid rgba(214,178,94,0.15);"
+                            f"border-radius:10px;padding:20px;'>"
+                            f"<div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:6px;'>Predicted Role</div>"
+                            f"<div style='font-family:serif;font-size:1.3rem;font-weight:700;color:#D6B25E;margin-bottom:14px;'>{h['role']}</div>"
+                            f"<div style='display:flex;gap:20px;flex-wrap:wrap;'>"
+                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Confidence</div>"
+                            f"<div style='font-size:1.1rem;font-weight:700;color:{conf_c};'>{h['conf']}%</div></div>"
+                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>ATS Score</div>"
+                            f"<div style='font-size:1.1rem;font-weight:700;color:{ats_c};'>{h['ats']}%</div></div>"
+                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Words</div>"
+                            f"<div style='font-size:1.1rem;font-weight:700;color:#F0EDE6;'>{h['words']:,}</div></div>"
+                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Model</div>"
+                            f"<div style='font-size:1.1rem;font-weight:700;color:#A89F92;'>{h['model']}</div></div>"
+                            f"</div></div>",
+                            unsafe_allow_html=True
+                        )
+                        st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
+                        if h["skills"]:
+                            skills_span = " ".join(
+                                f"<span style='display:inline-block;background:rgba(214,178,94,0.10);"
+                                f"border:1px solid rgba(214,178,94,0.25);border-radius:20px;"
+                                f"padding:3px 10px;font-size:10px;color:#D6B25E;margin:2px;'>{s}</span>"
+                                for s in h["skills"]
+                            )
+                            st.markdown(
+                                f"<div style='font-size:10px;color:#6B6560;text-transform:uppercase;"
+                                f"letter-spacing:1px;margin-bottom:8px;'>Detected Skills ({len(h['skills'])})</div>"
+                                f"<div style='display:flex;flex-wrap:wrap;'>{skills_span}</div>",
+                                unsafe_allow_html=True
+                            )
+                    with d_right:
+                        st.markdown(
+                            "<div style='font-size:10px;color:#6B6560;text-transform:uppercase;"
+                            "letter-spacing:1px;margin-bottom:10px;'>Top 5 Predictions</div>",
+                            unsafe_allow_html=True
+                        )
+                        for t in h["top5"]:
+                            st.markdown(
+                                f"<div style='margin-bottom:8px;'>"
+                                f"<div style='display:flex;justify-content:space-between;"
+                                f"font-size:12px;color:#A89F92;margin-bottom:3px;'>"
+                                f"<span>{t['role']}</span><span style='color:#D6B25E;'>{t['prob']}%</span></div>"
+                                f"<div style='background:rgba(255,255,255,0.05);border-radius:4px;height:4px;'>"
+                                f"<div style='background:#D6B25E;width:{t['prob']}%;height:4px;border-radius:4px;'></div>"
+                                f"</div></div>",
+                                unsafe_allow_html=True
+                            )
+                        st.markdown("<div style='margin-top:16px;'></div>", unsafe_allow_html=True)
+                        st.markdown(
+                            "<div style='font-size:10px;color:#6B6560;text-transform:uppercase;"
+                            "letter-spacing:1px;margin-bottom:8px;'>Resume Preview</div>",
+                            unsafe_allow_html=True
+                        )
+                        preview_text = h["text"][:400] + "…" if len(h["text"]) > 400 else h["text"]
+                        st.markdown(
+                            f"<div style='font-size:11px;color:#6B6560;line-height:1.6;"
+                            f"background:rgba(255,255,255,0.02);border-radius:6px;"
+                            f"padding:10px 12px;border:1px solid rgba(214,178,94,0.08);'>{preview_text}</div>",
+                            unsafe_allow_html=True
+                        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
