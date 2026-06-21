@@ -786,11 +786,8 @@ def load_models():
     models = {}
     model_files = {
         'svm'       : 'models/svm_pipeline.pkl',
-        'rf'        : 'models/random_forest_pipeline.pkl',
         'lr'        : 'models/logistic_regression_pipeline.pkl',
         'xgb'       : 'models/xgboost_pipeline.pkl',
-        'rf_tuned'  : 'models/random_forest_tuned_gridsearch.pkl',
-        'xgb_tuned' : 'models/xgboost_tuned_randomsearch.pkl',
     }
     for key, path in model_files.items():
         if os.path.exists(path):
@@ -1586,22 +1583,30 @@ elif page == "⚙️ ML Models":
     ml_tab1, ml_tab2 = st.tabs(["📋  Model Cards", "⚡  Live Comparison"])
 
     with ml_tab1:
-        c1, c2, c3 = st.columns(3, gap="medium")
-        col_list = [c1, c2, c3]
+        cards_html = ""
         for idx, (title, lbl, body, tags, is_best) in enumerate(model_data):
-            with col_list[idx % 3]:
-                tags_html = "".join([f"<span class='tech-pill' style='margin:2px;font-size:11px;'>{t}</span>" for t in tags])
-                border_style = "border-color: rgba(214,178,94,0.5); background: rgba(214,178,94,0.04);" if is_best else ""
-                st.markdown(f"""
-                <div class='glass-card' style='margin-bottom:16px; min-height:220px; {border_style}'>
-                    <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;
-                                color:#8C7A5B;margin-bottom:8px;'>{lbl}</div>
-                    <div style='font-family:Playfair Display,serif;font-size:1rem;font-weight:700;
-                                color:#{"D6B25E" if is_best else "F0EDE6"};margin-bottom:10px;'>{title}</div>
-                    <div style='font-size:13px;color:#A89F92;line-height:1.7;font-weight:300;margin-bottom:14px;'>{body}</div>
-                    <div>{tags_html}</div>
-                </div>
-                """, unsafe_allow_html=True)
+            tags_html = "".join([
+                f"<span style='display:inline-block;background:rgba(214,178,94,0.12);border:1px solid rgba(214,178,94,0.3);"
+                f"border-radius:20px;padding:3px 10px;font-size:10px;color:#D6B25E;margin:3px 3px 0 0;'>{t}</span>"
+                for t in tags
+            ])
+            gold_border = "border-color:rgba(214,178,94,0.5);background:rgba(214,178,94,0.04);" if is_best else ""
+            best_badge = "<span style='display:inline-block;background:#D6B25E;color:#0B0D10;font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:8px;letter-spacing:1px;vertical-align:middle;'>BEST</span>" if is_best else ""
+            title_color = "#D6B25E" if is_best else "#F0EDE6"
+            cards_html += f"""
+            <div style='background:rgba(255,255,255,0.035);border:1px solid rgba(214,178,94,0.18);
+                        {gold_border}border-radius:12px;padding:24px;display:flex;flex-direction:column;'>
+                <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:10px;'>{lbl}</div>
+                <div style='font-family:"Playfair Display",serif;font-size:1.05rem;font-weight:700;
+                            color:{title_color};margin-bottom:12px;line-height:1.4;'>{title}{best_badge}</div>
+                <div style='font-size:13px;color:#A89F92;line-height:1.75;font-weight:300;flex:1;margin-bottom:16px;'>{body}</div>
+                <div style='display:flex;flex-wrap:wrap;'>{tags_html}</div>
+            </div>"""
+        st.markdown(f"""
+        <div style='display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:12px;'>
+            {cards_html}
+        </div>
+        """, unsafe_allow_html=True)
 
     with ml_tab2:
         st.markdown("<div style='font-size:12px;color:#8C7A5B;margin-bottom:16px;'>Upload a PDF or paste resume text to compare all 4 classifiers side-by-side.</div>", unsafe_allow_html=True)
