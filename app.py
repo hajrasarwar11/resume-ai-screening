@@ -1583,12 +1583,39 @@ elif page == "🧠 Resume Intelligence":
             </div>
             """, unsafe_allow_html=True)
         else:
-            h_col_hdr, h_col_btn = st.columns([3, 1])
+            h_col_hdr, h_col_exp, h_col_btn = st.columns([3, 1, 1])
             with h_col_hdr:
                 st.markdown(
                     f"<div style='font-size:12px;color:#8C7A5B;padding-top:6px;'>"
                     f"<span style='color:#D6B25E;font-weight:600;'>{len(history)}</span> resume(s) analysed this session</div>",
                     unsafe_allow_html=True
+                )
+            with h_col_exp:
+                import io as _hist_io
+                export_rows = []
+                for h in history:
+                    export_rows.append({
+                        "Resume #": h["id"],
+                        "Time": h["timestamp"],
+                        "Predicted Role": h["role"],
+                        "Confidence %": h["conf"],
+                        "ATS Score %": h["ats"],
+                        "Model": h["model"],
+                        "Word Count": h["words"],
+                        "Skills Found": ", ".join(h["skills"]),
+                        "Top Prediction": h["top5"][0]["role"] if h["top5"] else "",
+                        "2nd Prediction": h["top5"][1]["role"] if len(h["top5"]) > 1 else "",
+                        "3rd Prediction": h["top5"][2]["role"] if len(h["top5"]) > 2 else "",
+                        "Resume Text (preview)": h["text"][:300].replace("\n", " "),
+                    })
+                export_df = pd.DataFrame(export_rows)
+                csv_bytes = export_df.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    label="⬇ Export CSV",
+                    data=csv_bytes,
+                    file_name="airecruit_history.csv",
+                    mime="text/csv",
+                    key="export_history_csv",
                 )
             with h_col_btn:
                 if st.button("🗑 Clear History", key="clear_history"):
