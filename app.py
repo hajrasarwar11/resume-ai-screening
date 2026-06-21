@@ -144,12 +144,14 @@ html, body, [class*="css"] {
     color: #D6B25E !important;
     border: 1px solid rgba(214,178,94,0.4) !important;
     border-radius: 8px !important;
-    padding: 10px 28px !important;
+    padding: 10px 18px !important;
     font-weight: 500 !important;
     font-size: 13px !important;
     font-family: 'Inter', sans-serif !important;
     transition: all 0.25s ease !important;
     letter-spacing: 0.5px !important;
+    white-space: nowrap !important;
+    width: 100% !important;
 }
 .stButton > button:hover {
     background: rgba(214,178,94,0.10) !important;
@@ -848,6 +850,8 @@ data_loaded = 'resume' in data
 
 if 'resume_history' not in st.session_state:
     st.session_state.resume_history = []
+if 'shortlist' not in st.session_state:
+    st.session_state.shortlist = []
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPER — build a single-row DataFrame from raw resume text
@@ -1636,15 +1640,18 @@ elif page == "🧠 Resume Intelligence":
             """, unsafe_allow_html=True)
         else:
             # ── header row ──
-            h_col_hdr, h_col_exp, h_col_btn = st.columns([3, 1, 1])
+            h_col_hdr, h_col_exp, h_col_pin, h_col_btn = st.columns([4, 1.3, 1.3, 1.3])
             with h_col_hdr:
                 n_single  = sum(1 for h in history if h.get("source","single") == "single")
                 n_batch   = sum(1 for h in history if h.get("source","single") == "batch")
                 n_compare = sum(1 for h in history if h.get("source","single") == "compare")
+                n_pinned  = len(st.session_state.shortlist)
                 st.markdown(
-                    f"<div style='font-size:12px;color:#8C7A5B;padding-top:6px;'>"
+                    f"<div style='font-size:12px;color:#8C7A5B;padding-top:8px;'>"
                     f"<span style='color:#D6B25E;font-weight:600;'>{len(history)}</span> total &nbsp;·&nbsp; "
-                    f"🔍 {n_single} single &nbsp;·&nbsp; 📦 {n_batch} batch &nbsp;·&nbsp; 🔄 {n_compare} compare</div>",
+                    f"🔍 {n_single} &nbsp;·&nbsp; 📦 {n_batch} &nbsp;·&nbsp; 🔄 {n_compare}"
+                    + (f" &nbsp;·&nbsp; <span style='color:#D6B25E;'>📌 {n_pinned} shortlisted</span>" if n_pinned else "")
+                    + "</div>",
                     unsafe_allow_html=True
                 )
             with h_col_exp:
@@ -1654,6 +1661,7 @@ elif page == "🧠 Resume Intelligence":
                         "Resume #": h["id"],
                         "Label": h.get("label", f"Resume #{h['id']}"),
                         "Source": h.get("source", "single").title(),
+                        "Shortlisted": "Yes" if any(s["id"] == h["id"] for s in st.session_state.shortlist) else "",
                         "Time": h["timestamp"],
                         "Predicted Role": h["role"],
                         "Confidence %": h["conf"],
@@ -1676,12 +1684,77 @@ elif page == "🧠 Resume Intelligence":
                     mime="text/csv",
                     key="export_history_csv",
                 )
+            with h_col_pin:
+                if st.session_state.shortlist:
+                    sl_csv = pd.DataFrame([{
+                        "Label": s.get("label",""), "Role": s["role"],
+                        "Confidence %": s["conf"], "ATS %": s["ats"],
+                        "Skills": ", ".join(s["skills"]), "Words": s["words"],
+                        "Source": s.get("source","single").title(),
+                        "Time": s["timestamp"],
+                    } for s in st.session_state.shortlist]).to_csv(index=False).encode("utf-8")
+                    st.download_button(
+                        label=f"📌 Export Shortlist ({len(st.session_state.shortlist)})",
+                        data=sl_csv,
+                        file_name="airecruit_shortlist.csv",
+                        mime="text/csv",
+                        key="export_shortlist_csv",
+                    )
+                else:
+                    st.markdown(
+                        "<div style='font-size:12px;color:#4A4540;padding-top:8px;text-align:center;'>📌 No shortlist</div>",
+                        unsafe_allow_html=True
+                    )
             with h_col_btn:
                 if st.button("🗑 Clear History", key="clear_history"):
                     st.session_state.resume_history = []
+                    st.session_state.shortlist = []
                     st.rerun()
 
             st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+            # ══════════════════════════════════════════════════
+            # SHORTLIST PANEL
+            # ══════════════════════════════════════════════════
+            shortlist = st.session_state.shortlist
+            if shortlist:
+                st.markdown(
+                    "<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;"
+                    "letter-spacing:2px;margin-bottom:12px;'>📌 Shortlist</div>",
+                    unsafe_allow_html=True
+                )
+                sl_ids = {s["id"] for s in shortlist}
+                sl_grid_cols = st.columns(min(len(shortlist), 3), gap="medium")
+                for sl_i, sl_c in enumerate(shortlist):
+                    with sl_grid_cols[sl_i % 3]:
+                        conf_c_sl = "#D6B25E" if sl_c["conf"] >= 80 else "#8C7A5B"
+                        ats_c_sl  = "#D6B25E" if sl_c["ats"]  >= 80 else "#8C7A5B"
+                        lbl_sl    = sl_c.get("label", f"Resume #{sl_c['id']}")
+                        src_sl    = sl_c.get("source", "single")
+                        st.markdown(
+                            f"<div style='background:rgba(214,178,94,0.05);border:1px solid rgba(214,178,94,0.25);"
+                            f"border-radius:10px;padding:14px 16px;margin-bottom:10px;'>"
+                            f"<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;'>"
+                            f"<div style='font-size:12px;font-weight:600;color:#F0EDE6;max-width:75%;word-break:break-word;'>{lbl_sl}</div>"
+                            f"{_src_badge(src_sl)}</div>"
+                            f"<div style='font-family:serif;font-size:1rem;color:#D6B25E;margin-bottom:8px;font-weight:700;'>{sl_c['role']}</div>"
+                            f"<div style='display:flex;gap:14px;flex-wrap:wrap;'>"
+                            f"<span style='font-size:11px;color:{conf_c_sl};'>Conf: <b>{sl_c['conf']}%</b></span>"
+                            f"<span style='font-size:11px;color:{ats_c_sl};'>ATS: <b>{sl_c['ats']}%</b></span>"
+                            f"<span style='font-size:11px;color:#A89F92;'>Skills: <b>{len(sl_c['skills'])}</b></span>"
+                            f"</div></div>",
+                            unsafe_allow_html=True
+                        )
+                        if st.button("✕ Remove", key=f"sl_rm_{sl_c['id']}"):
+                            st.session_state.shortlist = [s for s in shortlist if s["id"] != sl_c["id"]]
+                            st.rerun()
+                if st.button("🗑 Clear Shortlist", key="clear_shortlist"):
+                    st.session_state.shortlist = []
+                    st.rerun()
+                st.markdown(
+                    "<div style='height:1px;background:rgba(214,178,94,0.08);margin:20px 0;'></div>",
+                    unsafe_allow_html=True
+                )
 
             # ══════════════════════════════════════════════════
             # RANK AGAINST JOB DESCRIPTION
@@ -1876,11 +1949,23 @@ elif page == "🧠 Resume Intelligence":
                             )
                     with d_left:
                         st.markdown("<div style='margin-top:14px;'></div>", unsafe_allow_html=True)
-                        if st.button("🔍 Find Similar Candidates →", key=f"find_sim_{h['id']}", help="Send this resume to Recommendation Engine to find similar candidates from the full pool"):
-                            st.session_state.rec_jd_prefill = h["text"]
-                            st.session_state.rec_prefill_label = h.get("label", f"Resume #{h['id']}")
-                            st.session_state.nav_radio = "💼 Recommendation Engine"
-                            st.rerun()
+                        _is_pinned = any(s["id"] == h["id"] for s in st.session_state.shortlist)
+                        _pin_col, _sim_col = st.columns(2, gap="small")
+                        with _pin_col:
+                            if _is_pinned:
+                                if st.button("✅ Shortlisted", key=f"unpin_{h['id']}"):
+                                    st.session_state.shortlist = [s for s in st.session_state.shortlist if s["id"] != h["id"]]
+                                    st.rerun()
+                            else:
+                                if st.button("📌 Add to Shortlist", key=f"pin_{h['id']}"):
+                                    st.session_state.shortlist.append(h)
+                                    st.rerun()
+                        with _sim_col:
+                            if st.button("🔍 Find Similar →", key=f"find_sim_{h['id']}", help="Send this resume to Recommendation Engine"):
+                                st.session_state.rec_jd_prefill = h["text"]
+                                st.session_state.rec_prefill_label = h.get("label", f"Resume #{h['id']}")
+                                st.session_state.nav_radio = "💼 Recommendation Engine"
+                                st.rerun()
                     with d_right:
                         if h.get("top5"):
                             st.markdown(
