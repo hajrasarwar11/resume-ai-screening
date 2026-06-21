@@ -1432,7 +1432,25 @@ elif page == "🧠 Resume Intelligence":
                                 any(w in tl for w in ["email","phone","linkedin"]),
                                 len(txt.split()) > 100,
                             ]) / 5 * 100)
+                            top5_idx_b = np.argsort(prob_b)[::-1][:5]
+                            top5_saved_b = [{"role": CATEGORY_MAP.get(i, f"Cat {i}"), "prob": round(float(prob_b[i]) * 100, 1)} for i in top5_idx_b]
+                            skills_b_h = [s for s in COMMON_SKILLS if s in tl]
                             batch_results.append({"File": pdf_file.name, "Predicted Role": role_b, "Confidence %": conf_b, "ATS Score %": ats_b, "Word Count": len(txt.split())})
+                            import datetime as _dt_b
+                            _h_b = {
+                                "id": len(st.session_state.resume_history) + 1,
+                                "label": pdf_file.name,
+                                "timestamp": _dt_b.datetime.now().strftime("%H:%M:%S"),
+                                "source": "batch",
+                                "role": role_b, "conf": conf_b, "ats": ats_b,
+                                "model": best_key.upper(),
+                                "words": len(txt.split()),
+                                "skills": skills_b_h,
+                                "top5": top5_saved_b,
+                                "text": txt[:2000],
+                            }
+                            if txt[:200] not in [h["text"][:200] for h in st.session_state.resume_history]:
+                                st.session_state.resume_history.append(_h_b)
                         except Exception:
                             batch_results.append({"File": pdf_file.name, "Predicted Role": "Error", "Confidence %": 0, "ATS Score %": 0, "Word Count": 0})
                     if batch_results:
@@ -1514,6 +1532,27 @@ elif page == "🧠 Resume Intelligence":
                         overall_b = rb["conf"] * 0.5 + rb["ats"] * 0.3 + len(rb["skills"]) * 2
                         winner    = "A" if overall_a > overall_b else ("B" if overall_b > overall_a else "Tie")
 
+                        import datetime as _dt_cv
+                        for _lbl_cv2, _r_cv2, _txt_cv2 in [("A", ra, cv_a), ("B", rb, cv_b)]:
+                            _h_cv = {
+                                "id": len(st.session_state.resume_history) + 1,
+                                "label": f"Candidate {_lbl_cv2}",
+                                "timestamp": _dt_cv.datetime.now().strftime("%H:%M:%S"),
+                                "source": "compare",
+                                "role": _r_cv2["role"],
+                                "conf": round(_r_cv2["conf"], 1),
+                                "ats": _r_cv2["ats"],
+                                "model": best_key.upper(),
+                                "words": _r_cv2["words"],
+                                "skills": _r_cv2["skills"],
+                                "top5": [],
+                                "text": _txt_cv2[:2000],
+                                "winner": winner == _lbl_cv2,
+                                "compare_partner": "B" if _lbl_cv2 == "A" else "A",
+                            }
+                            if _txt_cv2[:200] not in [h["text"][:200] for h in st.session_state.resume_history]:
+                                st.session_state.resume_history.append(_h_cv)
+
                         shared_html = " ".join("<span style='background:rgba(214,178,94,0.12);color:#D6B25E;padding:2px 7px;border-radius:4px;font-size:11px;'>" + s + "</span>" for s in shared) or "<span style='color:#6B6560;font-size:11px;'>None</span>"
                         only_a_html = " ".join("<span style='background:rgba(214,178,94,0.10);color:#D6B25E;padding:2px 7px;border-radius:4px;font-size:11px;'>" + s + "</span>" for s in only_a) or "<span style='color:#6B6560;font-size:11px;'>—</span>"
                         only_b_html = " ".join("<span style='background:rgba(140,122,91,0.15);color:#A89F92;padding:2px 7px;border-radius:4px;font-size:11px;'>" + s + "</span>" for s in only_b) or "<span style='color:#6B6560;font-size:11px;'>—</span>"
@@ -1573,29 +1612,48 @@ elif page == "🧠 Resume Intelligence":
 
     with ri_tab5:
         history = st.session_state.resume_history
+
+        # ── source badge helper ──
+        def _src_badge(src):
+            cfg = {
+                "single":  ("🔍", "#4A3B28", "#D6B25E", "Single"),
+                "batch":   ("📦", "#1E2D1E", "#6DBF67", "Batch"),
+                "compare": ("🔄", "#1A2030", "#6B9FD4", "Compare"),
+            }
+            icon, bg, col, lbl = cfg.get(src, ("·", "#2A2A2A", "#8C7A5B", src.title()))
+            return (f"<span style='display:inline-block;background:{bg};color:{col};"
+                    f"border:1px solid {col}33;border-radius:20px;padding:2px 8px;"
+                    f"font-size:9px;font-weight:700;letter-spacing:1px;'>{icon} {lbl}</span>")
+
         if not history:
             st.markdown("""
             <div style='text-align:center;padding:80px 20px;color:#6B6560;'>
                 <div style='font-size:2.5rem;margin-bottom:16px;opacity:0.3;'>📜</div>
                 <div style='font-family:serif;font-size:1rem;font-weight:600;
                             color:#8C7A5B;margin-bottom:8px;'>No History Yet</div>
-                <div style='font-size:13px;'>Classify a resume in Single Screener — it will be saved here automatically.</div>
+                <div style='font-size:13px;'>Classify resumes via Single Screener, Batch Upload, or CV Compare — all results save here automatically.</div>
             </div>
             """, unsafe_allow_html=True)
         else:
+            # ── header row ──
             h_col_hdr, h_col_exp, h_col_btn = st.columns([3, 1, 1])
             with h_col_hdr:
+                n_single  = sum(1 for h in history if h.get("source","single") == "single")
+                n_batch   = sum(1 for h in history if h.get("source","single") == "batch")
+                n_compare = sum(1 for h in history if h.get("source","single") == "compare")
                 st.markdown(
                     f"<div style='font-size:12px;color:#8C7A5B;padding-top:6px;'>"
-                    f"<span style='color:#D6B25E;font-weight:600;'>{len(history)}</span> resume(s) analysed this session</div>",
+                    f"<span style='color:#D6B25E;font-weight:600;'>{len(history)}</span> total &nbsp;·&nbsp; "
+                    f"🔍 {n_single} single &nbsp;·&nbsp; 📦 {n_batch} batch &nbsp;·&nbsp; 🔄 {n_compare} compare</div>",
                     unsafe_allow_html=True
                 )
             with h_col_exp:
-                import io as _hist_io
                 export_rows = []
                 for h in history:
                     export_rows.append({
                         "Resume #": h["id"],
+                        "Label": h.get("label", f"Resume #{h['id']}"),
+                        "Source": h.get("source", "single").title(),
                         "Time": h["timestamp"],
                         "Predicted Role": h["role"],
                         "Confidence %": h["conf"],
@@ -1603,9 +1661,10 @@ elif page == "🧠 Resume Intelligence":
                         "Model": h["model"],
                         "Word Count": h["words"],
                         "Skills Found": ", ".join(h["skills"]),
-                        "Top Prediction": h["top5"][0]["role"] if h["top5"] else "",
-                        "2nd Prediction": h["top5"][1]["role"] if len(h["top5"]) > 1 else "",
-                        "3rd Prediction": h["top5"][2]["role"] if len(h["top5"]) > 2 else "",
+                        "Top Prediction": h["top5"][0]["role"] if h.get("top5") else "",
+                        "2nd Prediction": h["top5"][1]["role"] if h.get("top5") and len(h["top5"]) > 1 else "",
+                        "3rd Prediction": h["top5"][2]["role"] if h.get("top5") and len(h["top5"]) > 2 else "",
+                        "Winner (Compare)": "Yes" if h.get("winner") else "",
                         "Resume Text (preview)": h["text"][:300].replace("\n", " "),
                     })
                 export_df = pd.DataFrame(export_rows)
@@ -1622,15 +1681,105 @@ elif page == "🧠 Resume Intelligence":
                     st.session_state.resume_history = []
                     st.rerun()
 
-            st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-            # ── Summary comparison table ──
+            # ══════════════════════════════════════════════════
+            # RANK AGAINST JOB DESCRIPTION
+            # ══════════════════════════════════════════════════
+            st.markdown(
+                "<div style='font-size:11px;color:#8C7A5B;text-transform:uppercase;"
+                "letter-spacing:2px;margin-bottom:10px;'>🎯 Rank Candidates Against a Job Description</div>",
+                unsafe_allow_html=True
+            )
+            jd_input = st.text_area(
+                "",
+                height=120,
+                placeholder="Paste a job description here (e.g. 'Looking for a Python developer with 3+ years of experience in Django, REST APIs, PostgreSQL…') — all saved resumes will be ranked by fit.",
+                key="jd_rank_input",
+                label_visibility="collapsed"
+            )
+            rank_btn = st.button("Rank All Candidates →", key="jd_rank_btn")
+
+            if rank_btn and jd_input.strip():
+                from sklearn.feature_extraction.text import TfidfVectorizer
+                from sklearn.metrics.pairwise import cosine_similarity as _cos_sim
+                all_texts = [h["text"] for h in history] + [jd_input]
+                try:
+                    _tfidf = TfidfVectorizer(max_features=3000, stop_words="english")
+                    _mat   = _tfidf.fit_transform(all_texts)
+                    _jd_vec = _mat[-1]
+                    _sims   = _cos_sim(_mat[:-1], _jd_vec).flatten()
+
+                    ranked = []
+                    for i, h in enumerate(history):
+                        jd_sim    = round(float(_sims[i]) * 100, 1)
+                        composite = round(jd_sim * 0.5 + h["conf"] * 0.3 + h["ats"] * 0.2, 1)
+                        ranked.append({**h, "jd_sim": jd_sim, "composite": composite})
+                    ranked.sort(key=lambda x: x["composite"], reverse=True)
+
+                    st.markdown("<div style='margin-top:14px;'></div>", unsafe_allow_html=True)
+                    st.markdown(
+                        "<div style='font-size:10px;color:#8C7A5B;text-transform:uppercase;"
+                        "letter-spacing:2px;margin-bottom:10px;'>Ranked Results — Best Fit First</div>",
+                        unsafe_allow_html=True
+                    )
+                    for rank_i, r in enumerate(ranked):
+                        medal = ["🥇","🥈","🥉"][rank_i] if rank_i < 3 else f"#{rank_i+1}"
+                        bar_w = min(r["composite"], 100)
+                        sim_c = "#D6B25E" if r["jd_sim"] >= 40 else "#8C7A5B"
+                        win_badge = (" <span style='background:#1A2030;color:#6B9FD4;border:1px solid #6B9FD433;border-radius:10px;padding:1px 7px;font-size:9px;'>★ Compare Winner</span>" if r.get("winner") else "")
+                        r_label = r.get("label") or ("Resume #" + str(r["id"]))
+                        r_src_badge = _src_badge(r.get("source", "single"))
+                        st.markdown(
+                            f"<div style='background:rgba(255,255,255,0.025);border:1px solid rgba(214,178,94,0.12);"
+                            f"border-radius:10px;padding:14px 18px;margin-bottom:10px;'>"
+                            f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;'>"
+                            f"<div style='display:flex;align-items:center;gap:10px;'>"
+                            f"<span style='font-size:1.3rem;'>{medal}</span>"
+                            f"<div>"
+                            f"<div style='font-size:13px;font-weight:600;color:#F0EDE6;'>{r_label}{win_badge}</div>"
+                            f"<div style='font-size:11px;color:#8C7A5B;margin-top:2px;'>{r['role']} &nbsp;·&nbsp; {r_src_badge}</div>"
+                            f"</div></div>"
+                            f"<div style='text-align:right;'>"
+                            f"<div style='font-size:1.2rem;font-weight:700;color:#D6B25E;'>{r['composite']:.1f}</div>"
+                            f"<div style='font-size:9px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Composite Score</div>"
+                            f"</div></div>"
+                            f"<div style='display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;'>"
+                            f"<span style='font-size:11px;color:{sim_c};'>JD Match: <b>{r['jd_sim']}%</b></span>"
+                            f"<span style='font-size:11px;color:#A89F92;'>Confidence: <b>{r['conf']}%</b></span>"
+                            f"<span style='font-size:11px;color:#A89F92;'>ATS: <b>{r['ats']}%</b></span>"
+                            f"<span style='font-size:11px;color:#A89F92;'>Skills: <b>{len(r['skills'])}</b></span>"
+                            f"</div>"
+                            f"<div style='background:rgba(255,255,255,0.04);border-radius:4px;height:5px;'>"
+                            f"<div style='background:linear-gradient(90deg,#8C7A5B,#D6B25E);width:{bar_w}%;height:5px;border-radius:4px;'></div>"
+                            f"</div></div>",
+                            unsafe_allow_html=True
+                        )
+
+                    ranked_csv = pd.DataFrame([{
+                        "Rank": i+1, "Label": r.get("label",""), "Source": r.get("source","single").title(),
+                        "Role": r["role"], "JD Match %": r["jd_sim"],
+                        "Confidence %": r["conf"], "ATS %": r["ats"],
+                        "Composite Score": r["composite"], "Skills": len(r["skills"])
+                    } for i, r in enumerate(ranked)]).to_csv(index=False).encode("utf-8")
+                    st.download_button("⬇ Download Ranked Results CSV", ranked_csv, "ranked_candidates.csv", "text/csv", key="ranked_dl")
+
+                except Exception as e:
+                    st.error(f"Ranking error: {e}")
+            elif rank_btn:
+                st.warning("Please paste a job description first.")
+
+            st.markdown("<div style='height:28px;border-top:1px solid rgba(214,178,94,0.08);margin:24px 0 20px;'></div>", unsafe_allow_html=True)
+
+            # ══════════════════════════════════════════════════
+            # SESSION SUMMARY TABLE
+            # ══════════════════════════════════════════════════
             st.markdown(
                 "<div style='font-size:11px;color:#8C7A5B;text-transform:uppercase;"
                 "letter-spacing:2px;margin-bottom:10px;'>Session Summary</div>",
                 unsafe_allow_html=True
             )
-            header_cols = ["#", "Time", "Predicted Role", "Confidence", "ATS Score", "Skills Found", "Words"]
+            header_cols = ["#", "Source", "Label", "Predicted Role", "Confidence", "ATS", "Skills", "Words"]
             hdr_html = "".join(
                 f"<th style='padding:9px 14px;text-align:left;font-size:10px;"
                 f"text-transform:uppercase;letter-spacing:1.5px;"
@@ -1639,18 +1788,21 @@ elif page == "🧠 Resume Intelligence":
             )
             rows_html = ""
             for h in reversed(history):
-                conf_col = "#D6B25E" if h["conf"] >= 80 else "#8C7A5B"
-                ats_col  = "#D6B25E" if h["ats"] >= 80 else "#8C7A5B"
-                skills_txt = ", ".join(h["skills"][:5]) + ("…" if len(h["skills"]) > 5 else "") if h["skills"] else "—"
+                conf_col  = "#D6B25E" if h["conf"] >= 80 else "#8C7A5B"
+                ats_col   = "#D6B25E" if h["ats"] >= 80 else "#8C7A5B"
+                src       = h.get("source", "single")
+                win_star  = " ★" if h.get("winner") else ""
+                lbl_disp  = h.get("label", f"Resume #{h['id']}")
                 rows_html += (
-                    f"<tr style='border-bottom:1px solid rgba(214,178,94,0.06);'>"
-                    f"<td style='padding:10px 14px;font-size:12px;color:#8C7A5B;'>{h['id']}</td>"
-                    f"<td style='padding:10px 14px;font-size:12px;color:#A89F92;'>{h['timestamp']}</td>"
-                    f"<td style='padding:10px 14px;font-size:13px;color:#F0EDE6;font-weight:500;'>{h['role']}</td>"
-                    f"<td style='padding:10px 14px;font-size:13px;color:{conf_col};font-weight:600;'>{h['conf']}%</td>"
-                    f"<td style='padding:10px 14px;font-size:13px;color:{ats_col};font-weight:600;'>{h['ats']}%</td>"
-                    f"<td style='padding:10px 14px;font-size:11px;color:#A89F92;'>{skills_txt}</td>"
-                    f"<td style='padding:10px 14px;font-size:12px;color:#A89F92;'>{h['words']:,}</td>"
+                    f"<tr style='border-bottom:1px solid rgba(214,178,94,0.05);'>"
+                    f"<td style='padding:9px 14px;font-size:12px;color:#6B6560;'>{h['id']}</td>"
+                    f"<td style='padding:9px 14px;'>{_src_badge(src)}</td>"
+                    f"<td style='padding:9px 14px;font-size:12px;color:#A89F92;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>{lbl_disp}{win_star}</td>"
+                    f"<td style='padding:9px 14px;font-size:13px;color:#F0EDE6;font-weight:500;'>{h['role']}</td>"
+                    f"<td style='padding:9px 14px;font-size:13px;color:{conf_col};font-weight:600;'>{h['conf']}%</td>"
+                    f"<td style='padding:9px 14px;font-size:13px;color:{ats_col};font-weight:600;'>{h['ats']}%</td>"
+                    f"<td style='padding:9px 14px;font-size:12px;color:#A89F92;'>{len(h['skills'])}</td>"
+                    f"<td style='padding:9px 14px;font-size:12px;color:#A89F92;'>{h['words']:,}</td>"
                     f"</tr>"
                 )
             st.markdown(
@@ -1662,32 +1814,43 @@ elif page == "🧠 Resume Intelligence":
                 unsafe_allow_html=True
             )
 
-            # ── Individual cards ──
+            # ══════════════════════════════════════════════════
+            # DETAILED EXPANDABLE CARDS
+            # ══════════════════════════════════════════════════
             st.markdown(
                 "<div style='font-size:11px;color:#8C7A5B;text-transform:uppercase;"
                 "letter-spacing:2px;margin-bottom:14px;'>Detailed Results</div>",
                 unsafe_allow_html=True
             )
             for h in reversed(history):
-                conf_c = "#D6B25E" if h["conf"] >= 80 else "#8C7A5B"
-                ats_c  = "#D6B25E" if h["ats"] >= 80 else "#8C7A5B"
-                with st.expander(f"#{h['id']} · {h['role']} · {h['conf']}% confidence · {h['timestamp']}", expanded=False):
+                conf_c  = "#D6B25E" if h["conf"] >= 80 else "#8C7A5B"
+                ats_c   = "#D6B25E" if h["ats"] >= 80 else "#8C7A5B"
+                src     = h.get("source", "single")
+                win_str = " · ★ Winner" if h.get("winner") else ""
+                lbl     = h.get("label", f"Resume #{h['id']}")
+                expander_title = f"{lbl}{win_str} · {h['role']} · {h['conf']}% · {h['timestamp']}"
+                with st.expander(expander_title, expanded=False):
                     d_left, d_right = st.columns([1, 1], gap="large")
                     with d_left:
+                        win_banner = (
+                            "<div style='background:rgba(107,159,212,0.1);border:1px solid rgba(107,159,212,0.3);"
+                            "border-radius:6px;padding:6px 12px;font-size:11px;color:#6B9FD4;margin-bottom:12px;'>"
+                            "★ This candidate won the CV comparison</div>"
+                        ) if h.get("winner") else ""
                         st.markdown(
                             f"<div style='background:rgba(255,255,255,0.03);border:1px solid rgba(214,178,94,0.15);"
                             f"border-radius:10px;padding:20px;'>"
-                            f"<div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:6px;'>Predicted Role</div>"
+                            f"{win_banner}"
+                            f"<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;'>"
+                            f"{_src_badge(src)}"
+                            f"<span style='font-size:10px;color:#6B6560;'>{h['timestamp']}</span></div>"
+                            f"<div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:4px;'>Predicted Role</div>"
                             f"<div style='font-family:serif;font-size:1.3rem;font-weight:700;color:#D6B25E;margin-bottom:14px;'>{h['role']}</div>"
                             f"<div style='display:flex;gap:20px;flex-wrap:wrap;'>"
-                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Confidence</div>"
-                            f"<div style='font-size:1.1rem;font-weight:700;color:{conf_c};'>{h['conf']}%</div></div>"
-                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>ATS Score</div>"
-                            f"<div style='font-size:1.1rem;font-weight:700;color:{ats_c};'>{h['ats']}%</div></div>"
-                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Words</div>"
-                            f"<div style='font-size:1.1rem;font-weight:700;color:#F0EDE6;'>{h['words']:,}</div></div>"
-                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Model</div>"
-                            f"<div style='font-size:1.1rem;font-weight:700;color:#A89F92;'>{h['model']}</div></div>"
+                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Confidence</div><div style='font-size:1.1rem;font-weight:700;color:{conf_c};'>{h['conf']}%</div></div>"
+                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>ATS Score</div><div style='font-size:1.1rem;font-weight:700;color:{ats_c};'>{h['ats']}%</div></div>"
+                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Words</div><div style='font-size:1.1rem;font-weight:700;color:#F0EDE6;'>{h['words']:,}</div></div>"
+                            f"<div><div style='font-size:10px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Model</div><div style='font-size:1.1rem;font-weight:700;color:#A89F92;'>{h['model']}</div></div>"
                             f"</div></div>",
                             unsafe_allow_html=True
                         )
@@ -1706,20 +1869,26 @@ elif page == "🧠 Resume Intelligence":
                                 unsafe_allow_html=True
                             )
                     with d_right:
-                        st.markdown(
-                            "<div style='font-size:10px;color:#6B6560;text-transform:uppercase;"
-                            "letter-spacing:1px;margin-bottom:10px;'>Top 5 Predictions</div>",
-                            unsafe_allow_html=True
-                        )
-                        for t in h["top5"]:
+                        if h.get("top5"):
                             st.markdown(
-                                f"<div style='margin-bottom:8px;'>"
-                                f"<div style='display:flex;justify-content:space-between;"
-                                f"font-size:12px;color:#A89F92;margin-bottom:3px;'>"
-                                f"<span>{t['role']}</span><span style='color:#D6B25E;'>{t['prob']}%</span></div>"
-                                f"<div style='background:rgba(255,255,255,0.05);border-radius:4px;height:4px;'>"
-                                f"<div style='background:#D6B25E;width:{t['prob']}%;height:4px;border-radius:4px;'></div>"
-                                f"</div></div>",
+                                "<div style='font-size:10px;color:#6B6560;text-transform:uppercase;"
+                                "letter-spacing:1px;margin-bottom:10px;'>Top 5 Predictions</div>",
+                                unsafe_allow_html=True
+                            )
+                            for t in h["top5"]:
+                                st.markdown(
+                                    f"<div style='margin-bottom:8px;'>"
+                                    f"<div style='display:flex;justify-content:space-between;"
+                                    f"font-size:12px;color:#A89F92;margin-bottom:3px;'>"
+                                    f"<span>{t['role']}</span><span style='color:#D6B25E;'>{t['prob']}%</span></div>"
+                                    f"<div style='background:rgba(255,255,255,0.05);border-radius:4px;height:4px;'>"
+                                    f"<div style='background:#D6B25E;width:{min(t['prob'],100)}%;height:4px;border-radius:4px;'></div>"
+                                    f"</div></div>",
+                                    unsafe_allow_html=True
+                                )
+                        else:
+                            st.markdown(
+                                "<div style='font-size:12px;color:#6B6560;padding:10px 0;'>Top predictions not available for this entry type.</div>",
                                 unsafe_allow_html=True
                             )
                         st.markdown("<div style='margin-top:16px;'></div>", unsafe_allow_html=True)
