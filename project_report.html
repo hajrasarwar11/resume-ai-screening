@@ -1657,7 +1657,7 @@
         <div class="app-page-icon">⚙️</div>
         <div>
           <div class="app-page-title">ML Models</div>
-          <div class="app-page-desc">Detailed model cards for SVM, Logistic Regression, XGBoost, and K-Means. Displays accuracy, F1, ROC-AUC, training parameters, hyperparameter configurations, and model-specific strengths and weaknesses.</div>
+          <div class="app-page-desc">Three-tab model intelligence hub: (1) <strong>Model Cards</strong> — detailed cards for all 7 algorithm configurations (SVM, LR, RF, XGBoost, K-Means, Cross-Validation, Hyperparameter Tuning) with accuracy tags and parameter summaries; (2) <strong>🎯 Live Predictor</strong> — paste any resume text and all 4 classifiers run simultaneously, showing live per-model confidence gauge cards, a model-consensus banner (how many models agree), per-model top-3 prediction bars, and a grouped Plotly comparison chart; (3) <strong>📊 Accuracy Breakdown</strong> — grouped metric bar chart (all 4 metrics × all 4 models), accuracy ranking leaderboard (🥇🥈🥉④), and a full hyperparameter configuration table.</div>
         </div>
       </div>
       <div class="app-page-item">
@@ -1671,7 +1671,7 @@
         <div class="app-page-icon">📈</div>
         <div>
           <div class="app-page-title">Performance Metrics</div>
-          <div class="app-page-desc">Full model evaluation suite: accuracy comparison bar chart, classification reports, ROC-AUC curves, confusion matrices, and K-Means clustering analysis with Elbow Method, Silhouette Score, and Davies-Bouldin Index.</div>
+          <div class="app-page-desc">Comprehensive four-tab evaluation dashboard: (1) <strong>Model Comparison</strong> — radar chart overlaying all 4 models across Accuracy/Precision/Recall/F1 axes, plus score cards with individual metric values; (2) <strong>🏆 Leaderboard</strong> — ranked model cards (🥇🥈🥉④) with medal badges, "Best Model / Challenger" labels, per-metric mini progress bars, overall score, and a consensus polar radar at the bottom; (3) <strong>Confusion Matrix</strong> — interactive heatmap of predicted vs actual categories; (4) <strong>Per-Category</strong> — horizontal bar chart of per-class F1 scores colour-coded by strength tier. Below the tabs: ROC curves and technical pipeline detail cards (TF-IDF config, leakage prevention, regularisation strategy, clustering validation, ranking formula).</div>
         </div>
       </div>
       <div class="app-page-item">
@@ -1741,9 +1741,9 @@
         <div class="card-body">
           Three modules support real-time PDF upload via <code style="color:var(--gold);">pdfplumber</code>:
           the <strong>Recommendation Engine</strong> (bulk multi-PDF upload), <strong>CV Compare</strong>
-          (side-by-side PDF comparison), and <strong>ML Models Live Comparison</strong> (single PDF
-          prediction across all classifiers). Text is extracted, preprocessed, and vectorised in memory
-          without any server-side file storage.
+          (side-by-side PDF comparison), and <strong>ML Models Live Predictor</strong> (single PDF
+          routed through all 4 classifiers simultaneously with live confidence gauges). Text is extracted,
+          preprocessed, and vectorised in memory without any server-side file storage.
         </div>
       </div>
       <div class="card">

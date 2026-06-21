@@ -27,15 +27,17 @@
 | Feature | Description |
 |---|---|
 | 🧠 **Resume Intelligence** | NLP pipeline: clean → tokenize → TF-IDF vectorize → classify |
-| 🔍 **Single Screener** | Paste or upload a single resume for instant role prediction |
-| 📦 **Batch Upload** | Screen multiple PDF resumes simultaneously |
-| 🔄 **CV Compare** | Side-by-side comparison of two candidates with a winner declaration |
+| 🔍 **Single Screener** | Paste or upload a single resume for instant role prediction with top-5 probabilities |
+| 📦 **Batch Upload** | Screen multiple PDF resumes simultaneously, ranked by confidence |
+| 🔄 **CV Compare** | Side-by-side comparison of two candidates with a winner declaration and skill diff |
 | 💼 **Recommendation Engine** | Match any job description against 2,400+ resumes using cosine similarity |
 | 📊 **Candidate Analytics** | Category distribution, skill frequency, experience histograms, radar profiles |
 | 🔴 **Live Session Tracking** | Real-time dashboard of all resumes screened in the current session |
-| 🔍 **Candidate Lookup** | Search the full candidate pool by skill keyword or role category |
-| 📈 **Performance Metrics** | Full model evaluation — accuracy, F1, ROC-AUC, confusion matrices |
-| 📌 **Shortlist & Export** | Pin candidates, add recruiter notes, export to CSV |
+| 🔍 **Candidate Lookup** | Search the full 2,400+ candidate pool by skill keyword or role category |
+| 🎯 **ML Live Predictor** | Run all 4 classifiers simultaneously on any text — live confidence gauges per model |
+| 📊 **Model Accuracy Breakdown** | Grouped metric comparison, accuracy ranking, hyperparameter config table |
+| 🏆 **Performance Leaderboard** | Ranked model cards with per-metric mini-bars + consensus radar chart |
+| 📌 **Shortlist & Export** | Pin candidates, add recruiter notes, export history/shortlist to CSV |
 
 ---
 

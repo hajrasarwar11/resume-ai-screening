@@ -1651,52 +1651,71 @@ elif page == "🧠 Resume Intelligence":
             </div>
             """, unsafe_allow_html=True)
         else:
-            # ── header row: stats ──
             n_single  = sum(1 for h in history if h.get("source","single") == "single")
             n_batch   = sum(1 for h in history if h.get("source","single") == "batch")
             n_compare = sum(1 for h in history if h.get("source","single") == "compare")
             n_pinned  = len(st.session_state.shortlist)
+
+            # ── Stats bar ──
+            def chip(icon, val, lbl, hi=False):
+                bg_a   = "0.08" if hi else "0.03"
+                brd_a  = "0.35" if hi else "0.1"
+                clr    = "#D6B25E" if hi else "#F0EDE6"
+                return (
+                    f"<div style='display:flex;flex-direction:column;align-items:center;"
+                    f"background:rgba(214,178,94,{bg_a});border:1px solid rgba(214,178,94,{brd_a});"
+                    f"border-radius:10px;padding:8px 14px;min-width:64px;'>"
+                    f"<div style='font-size:1rem;'>{icon}</div>"
+                    f"<div style='font-size:1.1rem;font-weight:700;color:{clr};line-height:1.2;'>{val}</div>"
+                    f"<div style='font-size:9px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;margin-top:1px;'>{lbl}</div>"
+                    f"</div>"
+                )
             st.markdown(
-                f"<div style='font-size:12px;color:#8C7A5B;padding-bottom:10px;'>"
-                f"<span style='color:#D6B25E;font-weight:600;'>{len(history)}</span> total &nbsp;·&nbsp; "
-                f"🔍 {n_single} &nbsp;·&nbsp; 📦 {n_batch} &nbsp;·&nbsp; 🔄 {n_compare}"
-                + (f" &nbsp;·&nbsp; <span style='color:#D6B25E;'>📌 {n_pinned} shortlisted</span>" if n_pinned else "")
+                "<div style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;'>"
+                + chip("📜", len(history), "Total", True)
+                + chip("🔍", n_single, "Single")
+                + chip("📦", n_batch, "Batch")
+                + chip("🔄", n_compare, "Compare")
+                + chip("📌", n_pinned, "Pinned", n_pinned > 0)
                 + "</div>",
                 unsafe_allow_html=True
             )
 
-            # ── header row: two export buttons side by side ──
+            # ── Action buttons ──
+            st.markdown("<div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#6B6560;margin-bottom:8px;'>Export</div>", unsafe_allow_html=True)
+            export_rows = []
+            for h in history:
+                export_rows.append({
+                    "Resume #": h["id"],
+                    "Label": h.get("label", f"Resume #{h['id']}"),
+                    "Source": h.get("source", "single").title(),
+                    "Shortlisted": "Yes" if any(s["id"] == h["id"] for s in st.session_state.shortlist) else "",
+                    "Time": h["timestamp"],
+                    "Predicted Role": h["role"],
+                    "Confidence %": h["conf"],
+                    "ATS Score %": h["ats"],
+                    "Model": h["model"],
+                    "Word Count": h["words"],
+                    "Skills Found": ", ".join(h["skills"]),
+                    "Top Prediction": h["top5"][0]["role"] if h.get("top5") else "",
+                    "2nd Prediction": h["top5"][1]["role"] if h.get("top5") and len(h["top5"]) > 1 else "",
+                    "3rd Prediction": h["top5"][2]["role"] if h.get("top5") and len(h["top5"]) > 2 else "",
+                    "Winner (Compare)": "Yes" if h.get("winner") else "",
+                    "Recruiter Notes": st.session_state.candidate_notes.get(h["id"], ""),
+                    "Resume Text (preview)": h["text"][:300].replace("\n", " "),
+                })
+            export_df = pd.DataFrame(export_rows)
+            csv_bytes = export_df.to_csv(index=False).encode("utf-8")
+
             h_col_exp, h_col_pin = st.columns(2)
             with h_col_exp:
-                export_rows = []
-                for h in history:
-                    export_rows.append({
-                        "Resume #": h["id"],
-                        "Label": h.get("label", f"Resume #{h['id']}"),
-                        "Source": h.get("source", "single").title(),
-                        "Shortlisted": "Yes" if any(s["id"] == h["id"] for s in st.session_state.shortlist) else "",
-                        "Time": h["timestamp"],
-                        "Predicted Role": h["role"],
-                        "Confidence %": h["conf"],
-                        "ATS Score %": h["ats"],
-                        "Model": h["model"],
-                        "Word Count": h["words"],
-                        "Skills Found": ", ".join(h["skills"]),
-                        "Top Prediction": h["top5"][0]["role"] if h.get("top5") else "",
-                        "2nd Prediction": h["top5"][1]["role"] if h.get("top5") and len(h["top5"]) > 1 else "",
-                        "3rd Prediction": h["top5"][2]["role"] if h.get("top5") and len(h["top5"]) > 2 else "",
-                        "Winner (Compare)": "Yes" if h.get("winner") else "",
-                        "Recruiter Notes": st.session_state.candidate_notes.get(h["id"], ""),
-                        "Resume Text (preview)": h["text"][:300].replace("\n", " "),
-                    })
-                export_df = pd.DataFrame(export_rows)
-                csv_bytes = export_df.to_csv(index=False).encode("utf-8")
                 st.download_button(
-                    label="⬇ Export CSV",
+                    label="⬇ Export Full History (CSV)",
                     data=csv_bytes,
                     file_name="airecruit_history.csv",
                     mime="text/csv",
                     key="export_history_csv",
+                    use_container_width=True,
                 )
             with h_col_pin:
                 if st.session_state.shortlist:
@@ -1714,20 +1733,23 @@ elif page == "🧠 Resume Intelligence":
                         file_name="airecruit_shortlist.csv",
                         mime="text/csv",
                         key="export_shortlist_csv",
+                        use_container_width=True,
                     )
                 else:
                     st.markdown(
-                        "<div style='font-size:12px;color:#4A4540;padding-top:8px;text-align:center;'>📌 No shortlist</div>",
+                        "<div style='font-size:12px;color:#3A3530;border:1px solid rgba(214,178,94,0.08);"
+                        "border-radius:8px;padding:8px 12px;text-align:center;'>No shortlisted candidates yet</div>",
                         unsafe_allow_html=True
                     )
-            # ── destructive action: full-width below exports ──
-            st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
+
+            st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#6B6560;margin-bottom:6px;'>Danger Zone</div>", unsafe_allow_html=True)
             if st.button("🗑 Clear All History & Shortlist", key="clear_history", use_container_width=True):
                 st.session_state.resume_history = []
                 st.session_state.shortlist = []
                 st.rerun()
 
-            st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height:1px;background:rgba(214,178,94,0.08);margin:22px 0 18px;'></div>", unsafe_allow_html=True)
 
             # ══════════════════════════════════════════════════
             # SHORTLIST PANEL
@@ -2144,20 +2166,19 @@ elif page == "⚙️ ML Models":
         """, unsafe_allow_html=True)
 
         import pdfplumber as _pdf_lc, io as _io_lc
-        lp_col1, lp_col2 = st.columns([3, 1])
-        with lp_col1:
-            lc_text = st.text_area("Paste resume text", height=160,
-                placeholder="Paste any resume — e.g. 'Python developer with 4 years experience in machine learning, TensorFlow, AWS...'",
-                key="lc_text")
-        with lp_col2:
-            st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
-            lc_pdf = st.file_uploader("Or upload PDF", type=["pdf"], key="lc_pdf", label_visibility="visible")
+
+        lc_text = st.text_area("Paste resume text", height=160,
+            placeholder="Paste any resume — e.g. 'Python developer with 4 years experience in ML, TensorFlow, AWS...'",
+            key="lc_text")
+
+        with st.expander("📄 Or upload a PDF instead"):
+            lc_pdf = st.file_uploader("Upload resume PDF", type=["pdf"], key="lc_pdf", label_visibility="collapsed")
             if lc_pdf:
                 with _pdf_lc.open(_io_lc.BytesIO(lc_pdf.read())) as _plc:
                     _lc_extracted = "\n".join(pg.extract_text() or "" for pg in _plc.pages)
                 if _lc_extracted.strip():
                     lc_text = _lc_extracted
-                    st.success(f"✓ {len(lc_text.split())} words")
+                    st.success(f"✓ PDF loaded — {len(lc_text.split())} words extracted")
 
         lc_btn = st.button("⚡ Run All 4 Models Simultaneously", key="lc_run", use_container_width=True)
 
@@ -2177,74 +2198,64 @@ elif page == "⚙️ ML Models":
                             "model": mname, "color": color,
                             "role": CATEGORY_MAP.get(enc, f"Cat {enc}"),
                             "conf": prob.max() * 100,
-                            "top3": [(CATEGORY_MAP.get(sorted_idx[i], f"Cat {sorted_idx[i]}"),
-                                      prob[sorted_idx[i]] * 100) for i in range(min(3, len(prob)))],
+                            "top3": [(CATEGORY_MAP.get(int(sorted_idx[i]), f"Cat {sorted_idx[i]}"),
+                                      float(prob[sorted_idx[i]]) * 100) for i in range(min(3, len(prob)))],
                         })
                     except Exception as e:
                         result_cards.append({"model": mname, "color": color,
-                                             "role": "Error", "conf": 0, "top3": [], "err": str(e)})
+                                             "role": "Error", "conf": 0.0, "top3": [], "err": str(e)})
 
             if result_cards:
                 st.markdown("<br>", unsafe_allow_html=True)
-                # Check consensus
+
+                # Consensus banner
                 roles = [r["role"] for r in result_cards if r.get("conf", 0) > 0]
                 consensus = max(set(roles), key=roles.count) if roles else "—"
                 agree_count = roles.count(consensus)
                 agree_color = "#D6B25E" if agree_count == len(result_cards) else "#8C7A5B" if agree_count >= 2 else "#6B6560"
-                st.markdown(f"""
-                <div style='background:rgba(214,178,94,0.06);border:1px solid rgba(214,178,94,0.25);
-                            border-radius:10px;padding:16px 22px;margin-bottom:20px;
-                            display:flex;align-items:center;justify-content:space-between;'>
-                    <div>
-                        <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:4px;'>Model Consensus</div>
-                        <div style='font-family:"Playfair Display",serif;font-size:1.15rem;font-weight:700;color:{agree_color};'>{consensus}</div>
-                    </div>
-                    <div style='text-align:right;'>
-                        <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:4px;'>Agreement</div>
-                        <div style='font-size:1.4rem;font-weight:700;color:{agree_color};'>{agree_count}/{len(result_cards)} models</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                con_left = f"<div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:4px;'>Model Consensus</div><div style='font-family:serif;font-size:1.15rem;font-weight:700;color:{agree_color};'>{consensus}</div>"
+                con_right = f"<div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:4px;'>Agreement</div><div style='font-size:1.4rem;font-weight:700;color:{agree_color};'>{agree_count}/{len(result_cards)} models</div>"
+                st.markdown(
+                    f"<div style='background:rgba(214,178,94,0.06);border:1px solid rgba(214,178,94,0.25);border-radius:10px;padding:16px 22px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;'><div>{con_left}</div><div style='text-align:right;'>{con_right}</div></div>",
+                    unsafe_allow_html=True
+                )
 
+                # Model result cards — rendered with separate st.markdown calls (no embedded HTML vars)
                 rc1, rc2 = st.columns(2)
                 for idx, r in enumerate(result_cards):
                     col = rc1 if idx % 2 == 0 else rc2
                     with col:
-                        top3_html = ""
+                        mc = r["color"]
+                        conf_val = r["conf"]
+                        # Card header
+                        st.markdown(
+                            f"<div style='background:rgba(255,255,255,0.025);border:1px solid rgba(214,178,94,0.18);border-left:3px solid {mc};border-radius:12px;padding:16px 18px 10px;margin-bottom:4px;'>"
+                            f"<div style='display:flex;justify-content:space-between;align-items:flex-start;'>"
+                            f"<div><div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#6B6560;margin-bottom:4px;'>{r['model']}</div>"
+                            f"<div style='font-family:serif;font-size:1rem;font-weight:700;color:{mc};'>{r['role']}</div></div>"
+                            f"<div style='background:rgba(214,178,94,0.1);border:1px solid rgba(214,178,94,0.25);border-radius:50%;width:50px;height:50px;display:flex;align-items:center;justify-content:center;flex-direction:column;'>"
+                            f"<div style='font-size:13px;font-weight:700;color:{mc};line-height:1;'>{conf_val:.0f}%</div>"
+                            f"<div style='font-size:8px;color:#6B6560;'>conf</div></div></div></div>",
+                            unsafe_allow_html=True
+                        )
+                        # Top-3 prediction bars — each bar in its own st.markdown call
                         for i, (role_n, pct) in enumerate(r.get("top3", [])):
-                            bar_w = pct
-                            top3_html += f"""
-                            <div style='margin-bottom:10px;'>
-                                <div style='display:flex;justify-content:space-between;margin-bottom:3px;'>
-                                    <span style='font-size:11px;color:{"#F0EDE6" if i==0 else "#A89F92"};font-weight:{"600" if i==0 else "400"};'>{role_n}</span>
-                                    <span style='font-size:11px;color:{r["color"]};font-weight:700;'>{pct:.1f}%</span>
-                                </div>
-                                <div style='height:4px;background:rgba(214,178,94,0.08);border-radius:2px;overflow:hidden;'>
-                                    <div style='height:100%;width:{bar_w:.1f}%;background:{r["color"]};border-radius:2px;'></div>
-                                </div>
-                            </div>"""
+                            txt_color = "#F0EDE6" if i == 0 else "#A89F92"
+                            fw = "700" if i == 0 else "400"
+                            bar_pct = min(pct, 100)
+                            st.markdown(
+                                f"<div style='margin:0 0 7px;padding:0 2px;'>"
+                                f"<div style='display:flex;justify-content:space-between;margin-bottom:2px;'>"
+                                f"<span style='font-size:11px;color:{txt_color};font-weight:{fw};'>{role_n}</span>"
+                                f"<span style='font-size:11px;color:{mc};font-weight:700;'>{pct:.1f}%</span></div>"
+                                f"<div style='height:3px;background:rgba(214,178,94,0.08);border-radius:2px;'>"
+                                f"<div style='height:100%;width:{bar_pct:.1f}%;background:{mc};border-radius:2px;'></div>"
+                                f"</div></div>",
+                                unsafe_allow_html=True
+                            )
+                        st.markdown("<div style='margin-bottom:12px;'></div>", unsafe_allow_html=True)
 
-                        conf_ring_pct = r["conf"]
-                        st.markdown(f"""
-                        <div style='background:rgba(255,255,255,0.025);border:1px solid rgba(214,178,94,0.2);
-                                    border-left:3px solid {r["color"]};border-radius:12px;padding:20px;margin-bottom:14px;'>
-                            <div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;'>
-                                <div>
-                                    <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#6B6560;margin-bottom:4px;'>{r["model"]}</div>
-                                    <div style='font-family:"Playfair Display",serif;font-size:1rem;font-weight:700;color:{r["color"]};'>{r["role"]}</div>
-                                </div>
-                                <div style='background:rgba(214,178,94,0.1);border:1px solid rgba(214,178,94,0.25);
-                                            border-radius:50%;width:52px;height:52px;display:flex;align-items:center;
-                                            justify-content:center;flex-direction:column;flex-shrink:0;'>
-                                    <div style='font-size:12px;font-weight:700;color:{r["color"]};line-height:1;'>{conf_ring_pct:.0f}%</div>
-                                    <div style='font-size:8px;color:#6B6560;'>conf</div>
-                                </div>
-                            </div>
-                            {top3_html}
-                        </div>
-                        """, unsafe_allow_html=True)
-
-                # Plotly grouped bar for quick visual comparison
+                # Plotly grouped bar
                 fig_cmp = go.Figure()
                 for i, r in enumerate(result_cards):
                     top3_roles = [t[0] for t in r.get("top3", [])]
@@ -2256,15 +2267,15 @@ elif page == "⚙️ ML Models":
                         textposition='outside', textfont=dict(size=9, color='#A89F92')
                     ))
                 fig_cmp.update_layout(
-                    barmode='group', height=300,
-                    margin=dict(l=0, r=0, t=24, b=0),
+                    barmode='group', height=280,
+                    margin=dict(l=0, r=0, t=30, b=0),
                     xaxis=dict(tickfont=dict(size=10, color='#A89F92'), gridcolor='rgba(0,0,0,0)'),
                     yaxis=dict(title='Confidence %', gridcolor='rgba(214,178,94,0.07)',
                                tickfont=dict(size=9, color='#A89F92')),
-                    legend=dict(font=dict(size=10, color='#A89F92')),
+                    legend=dict(font=dict(size=10, color='#A89F92'), orientation='h', y=1.12),
                     paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
                     font=dict(family='Inter', color='#A89F92'),
-                    title=dict(text="Top-3 Predictions — All Models", font=dict(size=12, color='#8C7A5B'), x=0.01)
+                    title=dict(text="Top-3 Predictions — All Models", font=dict(size=11, color='#8C7A5B'), x=0.01)
                 )
                 st.plotly_chart(fig_cmp, use_container_width=True, config={'displayModeBar': False})
 
@@ -3116,47 +3127,46 @@ elif page == "📈 Performance Metrics":
             medal = lb_medals[ri]
             color = lb_colors[ri]
             is_top = ri == 0
-            border_style = "border-color:rgba(214,178,94,0.55);box-shadow:0 0 20px rgba(214,178,94,0.07);" if is_top else ""
-            bg_style = "background:rgba(214,178,94,0.04);" if is_top else "background:rgba(255,255,255,0.015);"
+            overall = ((row["Accuracy"] + row["Precision"] + row["Recall"] + row["F1-Score"]) / 4) * 100
+            rank_label = "Production Model" if is_top else "Challenger"
+            border_col = "rgba(214,178,94,0.55)" if is_top else "rgba(214,178,94,0.14)"
+            bg_col = "rgba(214,178,94,0.04)" if is_top else "rgba(255,255,255,0.015)"
+            best_badge = ("<span style='background:#D6B25E;color:#0B0D10;font-size:8px;font-weight:700;"
+                          "padding:2px 8px;border-radius:20px;letter-spacing:1px;'>BEST MODEL</span>") if is_top else ""
+            model_name = str(row["Model"])
 
-            metrics_html = ""
-            for m_name, m_key in [("ACC", "Accuracy"), ("PREC", "Precision"), ("REC", "Recall"), ("F1", "F1-Score")]:
+            # Card header — no embedded HTML variable containing multiline HTML
+            st.markdown(
+                f"<div style='border:1px solid {border_col};background:{bg_col};border-radius:14px;"
+                f"padding:18px 22px 12px;margin-bottom:4px;'>"
+                f"<div style='display:flex;align-items:center;justify-content:space-between;'>"
+                f"<div style='display:flex;align-items:center;gap:14px;'>"
+                f"<span style='font-size:2rem;line-height:1;'>{medal}</span>"
+                f"<div><div style='font-family:serif;font-size:1.05rem;font-weight:700;color:#F0EDE6;'>{model_name} {best_badge}</div>"
+                f"<div style='font-size:10px;color:#6B6560;margin-top:2px;'>Rank #{ri+1} · {rank_label}</div></div></div>"
+                f"<div style='text-align:right;'>"
+                f"<div style='font-size:8px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Overall Score</div>"
+                f"<div style='font-size:1.3rem;font-weight:700;color:{color};'>{overall:.2f}%</div>"
+                f"</div></div></div>",
+                unsafe_allow_html=True
+            )
+
+            # Metrics row — native columns, no embedded HTML vars
+            m_cols = st.columns(4)
+            for mc, (m_name_s, m_key) in zip(m_cols, [("Accuracy","Accuracy"),("Precision","Precision"),("Recall","Recall"),("F1-Score","F1-Score")]):
                 val = row[m_key]
-                bar_w = (val - 0.94) / (1.0 - 0.94) * 100
-                bar_w = max(0, min(100, bar_w))
-                metrics_html += f"""
-                <div style='flex:1;min-width:80px;'>
-                    <div style='font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#6B6560;margin-bottom:3px;'>{m_name}</div>
-                    <div style='font-size:13px;font-weight:700;color:{color};margin-bottom:4px;'>{val*100:.2f}%</div>
-                    <div style='height:3px;background:rgba(214,178,94,0.08);border-radius:2px;'>
-                        <div style='height:100%;width:{bar_w:.1f}%;background:{color};border-radius:2px;'></div>
-                    </div>
-                </div>"""
-
-            best_tag = f"<span style='background:#D6B25E;color:#0B0D10;font-size:8px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:1px;'>BEST MODEL</span>" if is_top else ""
-
-            st.markdown(f"""
-            <div style='border:1px solid rgba(214,178,94,0.15);{border_style}{bg_style}
-                        border-radius:14px;padding:18px 22px;margin-bottom:12px;'>
-                <div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;'>
-                    <div style='display:flex;align-items:center;gap:14px;'>
-                        <span style='font-size:2rem;line-height:1;'>{medal}</span>
-                        <div>
-                            <div style='font-family:"Playfair Display",serif;font-size:1.05rem;font-weight:700;color:#F0EDE6;'>{row["Model"]}</div>
-                            <div style='font-size:10px;color:#6B6560;margin-top:2px;'>Rank #{ri+1} · {"Production Model" if is_top else "Challenger"}</div>
-                        </div>
-                    </div>
-                    <div style='display:flex;align-items:center;gap:10px;'>
-                        {best_tag}
-                        <div style='text-align:right;'>
-                            <div style='font-size:8px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Overall Score</div>
-                            <div style='font-size:1.3rem;font-weight:700;color:{color};'>{((row["Accuracy"]+row["Precision"]+row["Recall"]+row["F1-Score"])/4)*100:.2f}%</div>
-                        </div>
-                    </div>
-                </div>
-                <div style='display:flex;gap:16px;flex-wrap:wrap;'>{metrics_html}</div>
-            </div>
-            """, unsafe_allow_html=True)
+                bar_w = max(0, min(100, (val - 0.94) / 0.06 * 100))
+                with mc:
+                    st.markdown(
+                        f"<div style='border:1px solid {border_col};background:{bg_col};border-radius:0 0 10px 10px;"
+                        f"padding:10px 14px;margin-bottom:12px;'>"
+                        f"<div style='font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#6B6560;margin-bottom:3px;'>{m_name_s}</div>"
+                        f"<div style='font-size:13px;font-weight:700;color:{color};margin-bottom:5px;'>{val*100:.2f}%</div>"
+                        f"<div style='height:3px;background:rgba(214,178,94,0.08);border-radius:2px;'>"
+                        f"<div style='height:100%;width:{bar_w:.1f}%;background:{color};border-radius:2px;'></div>"
+                        f"</div></div>",
+                        unsafe_allow_html=True
+                    )
 
         # Animated comparison chart: metrics on X, one bar per model
         st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
