@@ -852,6 +852,8 @@ if 'resume_history' not in st.session_state:
     st.session_state.resume_history = []
 if 'shortlist' not in st.session_state:
     st.session_state.shortlist = []
+if 'candidate_notes' not in st.session_state:
+    st.session_state.candidate_notes = {}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPER — build a single-row DataFrame from raw resume text
@@ -1673,6 +1675,7 @@ elif page == "🧠 Resume Intelligence":
                         "2nd Prediction": h["top5"][1]["role"] if h.get("top5") and len(h["top5"]) > 1 else "",
                         "3rd Prediction": h["top5"][2]["role"] if h.get("top5") and len(h["top5"]) > 2 else "",
                         "Winner (Compare)": "Yes" if h.get("winner") else "",
+                        "Recruiter Notes": st.session_state.candidate_notes.get(h["id"], ""),
                         "Resume Text (preview)": h["text"][:300].replace("\n", " "),
                     })
                 export_df = pd.DataFrame(export_rows)
@@ -1692,6 +1695,7 @@ elif page == "🧠 Resume Intelligence":
                         "Skills": ", ".join(s["skills"]), "Words": s["words"],
                         "Source": s.get("source","single").title(),
                         "Time": s["timestamp"],
+                        "Recruiter Notes": s.get("note") or st.session_state.candidate_notes.get(s["id"], ""),
                     } for s in st.session_state.shortlist]).to_csv(index=False).encode("utf-8")
                     st.download_button(
                         label=f"📌 Export Shortlist ({len(st.session_state.shortlist)})",
@@ -1731,6 +1735,12 @@ elif page == "🧠 Resume Intelligence":
                         ats_c_sl  = "#D6B25E" if sl_c["ats"]  >= 80 else "#8C7A5B"
                         lbl_sl    = sl_c.get("label", f"Resume #{sl_c['id']}")
                         src_sl    = sl_c.get("source", "single")
+                        _sl_note = sl_c.get("note") or st.session_state.candidate_notes.get(sl_c["id"], "")
+                        _note_html = (
+                            f"<div style='margin-top:8px;padding:6px 8px;background:rgba(255,255,255,0.03);"
+                            f"border-left:2px solid rgba(214,178,94,0.3);border-radius:0 4px 4px 0;"
+                            f"font-size:11px;color:#A89F92;line-height:1.5;'>📝 {_sl_note}</div>"
+                        ) if _sl_note else ""
                         st.markdown(
                             f"<div style='background:rgba(214,178,94,0.05);border:1px solid rgba(214,178,94,0.25);"
                             f"border-radius:10px;padding:14px 16px;margin-bottom:10px;'>"
@@ -1742,7 +1752,7 @@ elif page == "🧠 Resume Intelligence":
                             f"<span style='font-size:11px;color:{conf_c_sl};'>Conf: <b>{sl_c['conf']}%</b></span>"
                             f"<span style='font-size:11px;color:{ats_c_sl};'>ATS: <b>{sl_c['ats']}%</b></span>"
                             f"<span style='font-size:11px;color:#A89F92;'>Skills: <b>{len(sl_c['skills'])}</b></span>"
-                            f"</div></div>",
+                            f"</div>{_note_html}</div>",
                             unsafe_allow_html=True
                         )
                         if st.button("✕ Remove", key=f"sl_rm_{sl_c['id']}"):
@@ -1958,7 +1968,8 @@ elif page == "🧠 Resume Intelligence":
                                     st.rerun()
                             else:
                                 if st.button("📌 Add to Shortlist", key=f"pin_{h['id']}"):
-                                    st.session_state.shortlist.append(h)
+                                    _note_on_pin = st.session_state.candidate_notes.get(h["id"], "")
+                                    st.session_state.shortlist.append({**h, "note": _note_on_pin})
                                     st.rerun()
                         with _sim_col:
                             if st.button("🔍 Find Similar →", key=f"find_sim_{h['id']}", help="Send this resume to Recommendation Engine"):
@@ -2002,6 +2013,36 @@ elif page == "🧠 Resume Intelligence":
                             f"padding:10px 12px;border:1px solid rgba(214,178,94,0.08);'>{preview_text}</div>",
                             unsafe_allow_html=True
                         )
+                    # ── Recruiter Notes (full width below both columns) ──
+                    st.markdown(
+                        "<div style='height:1px;background:rgba(214,178,94,0.07);margin:16px 0 12px;'></div>",
+                        unsafe_allow_html=True
+                    )
+                    _saved_note = st.session_state.candidate_notes.get(h["id"], "")
+                    _note_input = st.text_area(
+                        "📝 Recruiter Notes",
+                        value=_saved_note,
+                        key=f"note_input_{h['id']}",
+                        height=80,
+                        placeholder="Add your notes — strengths, concerns, interview outcome, salary expectation…",
+                    )
+                    _note_col_save, _note_col_clr, _ = st.columns([1, 1, 4], gap="small")
+                    with _note_col_save:
+                        if st.button("💾 Save Note", key=f"note_save_{h['id']}"):
+                            st.session_state.candidate_notes[h["id"]] = _note_input
+                            if _is_pinned:
+                                for _sl in st.session_state.shortlist:
+                                    if _sl["id"] == h["id"]:
+                                        _sl["note"] = _note_input
+                            st.rerun()
+                    with _note_col_clr:
+                        if _saved_note and st.button("🗑 Clear Note", key=f"note_clr_{h['id']}"):
+                            st.session_state.candidate_notes.pop(h["id"], None)
+                            if _is_pinned:
+                                for _sl in st.session_state.shortlist:
+                                    if _sl["id"] == h["id"]:
+                                        _sl.pop("note", None)
+                            st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
