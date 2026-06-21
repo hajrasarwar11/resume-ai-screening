@@ -7,6 +7,7 @@
 [![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-1.6.1-orange?style=for-the-badge&logo=scikitlearn&logoColor=white)](https://scikit-learn.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.41.1-red?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
 [![XGBoost](https://img.shields.io/badge/XGBoost-2.1.3-green?style=for-the-badge)](https://xgboost.readthedocs.io)
+[![Accuracy](https://img.shields.io/badge/Accuracy-98.75%25-gold?style=for-the-badge)](https://github.com)
 
 *University Project · SE-CD-638 Machine Learning · Dr. Aamir Arsalan · Semester VI · 2026–2027*
 
@@ -16,67 +17,9 @@
 
 ## 📌 Overview
 
-**AIRECRUIT** is an end-to-end ML-powered recruitment intelligence platform that automates resume screening, role classification, skill extraction, and candidate-job matching. It eliminates manual bias in hiring by using NLP and four classification algorithms to objectively rank and recommend candidates across 42 job categories.
+**AIRECRUIT** is an end-to-end, AI-powered recruitment intelligence platform that automates resume screening, role classification, skill extraction, and candidate-job matching. It eliminates manual bias in hiring by using NLP and four classification algorithms to objectively rank and recommend candidates across **42 job categories** from a corpus of **2,400+ labelled resumes**, achieving **98.75% accuracy** with the SVM model.
 
----
-
-## ✨ Feature Pages
-
-| Page | Question Answered | Key Features |
-|---|---|---|
-| 🏠 **Home** | What is AIRECRUIT? | Hero, key stats, problem statement, tech stack, animated neural net visualization |
-| 🔬 **Workflow** | How does the system work? | Interactive pipeline, step-by-step architecture, feature engineering & classification flows |
-| 🧠 **Resume Intelligence** | What does this resume contain? | Single screener (PDF/paste), ATS score, top-5 predictions, candidate fit radar, batch upload, CV compare, history, interview questions, HTML report export |
-| 💼 **Recommendation Engine** | Who is the best candidate? | JD matcher, top-N candidates, skill gap analysis, score breakdown chart, skill coverage matrix, shortlist manager, candidate compare, salary estimator |
-| ⚙️ **ML Models** | How do the algorithms work? | Model cards, live predictor (all 4 models simultaneously), hyperparameter tuning config, feature importance, model agreement heatmap |
-| 📊 **Candidate Analytics** | What patterns exist in the data? | Category distribution, skill frequency, experience histograms, radar profiles, candidate lookup, session dashboard |
-| 📈 **Performance Metrics** | Which model performs best? | Model comparison radar, unified leaderboard cards, confusion matrix, per-category F1 chart, ROC curves, validation strategy |
-| 🚀 **Recruiter Workspace** | How do I track candidates? | Bookmark candidates, pipeline board (Kanban-style stages), interview notes + ratings, hiring to-do list, export CSV shortlist, donut chart pipeline distribution |
-| 👥 **About** | Who built AIRECRUIT? | Team cards, tech stack, project structure, academic context |
-
----
-
-## 🔄 Full End-to-End Process Flow
-
-```
-Raw Resume (PDF / Text)
-        │
-        ▼
-  Text Extraction (pdfplumber)
-        │
-        ▼
-  Text Preprocessing (NLTK)
-  └── lowercase · remove punctuation
-  └── stopword removal · lemmatization
-        │
-        ▼
-  Feature Engineering
-  ├── TF-IDF Vectorizer (3,000 features)
-  ├── Experience Years extraction (regex)
-  ├── Skill Count (vocab matching)
-  └── Education Level (keyword detection)
-        │
-        ▼
-  ColumnTransformer Pipeline
-  ├── TF-IDF branch (text features)
-  └── StandardScaler branch (numeric features)
-        │
-        ▼
-  Classification (4 Models)
-  ├── SVM (LinearSVC + Calibration) — 98.75% — Production
-  ├── Random Forest (GridSearchCV)   — 98.15%
-  ├── Logistic Regression (saga)     — 97.00%
-  └── XGBoost (RandomizedSearchCV)   — 96.50%
-        │
-        ▼
-  Recommendation Engine
-  ├── Cosine Similarity (TF-IDF match, 60%)
-  ├── Experience Score (20%)
-  └── Skill Coverage Score (20%)
-        │
-        ▼
-  Output: Role · Confidence · Top-5 · ATS Score · Salary Estimate
-```
+The system is deployed as a full Streamlit web application with 9 interactive pages, covering everything from single resume screening to a complete Recruiter Workspace with pipeline tracking.
 
 ---
 
@@ -89,18 +32,127 @@ Raw Resume (PDF / Text)
 | 🥉 | Logistic Regression | 97.00% | 97.03% | 97.00% | 97.00% | L2 / saga solver |
 | ④ | XGBoost | 96.50% | 96.52% | 96.50% | 96.50% | RandomizedSearchCV |
 
-> **Version Note:** Models were trained with scikit-learn 1.9.0. The app includes a `safe_predict()` compatibility layer that handles sklearn version mismatches for both Logistic Regression (`multi_class` attribute removal) and XGBoost (`__sklearn_tags__` incompatibility) using native API fallbacks.
+> **Version Compatibility:** Models were trained with scikit-learn 1.9.0. A `safe_predict()` helper handles cross-version compatibility for LR (`multi_class` attribute removal) and XGBoost (`__sklearn_tags__` incompatibility) using native API fallbacks.
 
 ---
 
-## 🚀 Recruiter Workspace (New)
+## ✨ Application Pages
 
-A fully featured hiring command centre built into the app:
+| Page | What It Does | Key Features |
+|---|---|---|
+| 🏠 **Home** | Platform overview | Stats, problem statement, animated neural net, objectives |
+| 🔬 **Workflow** | How the system works | Interactive pipeline, step-by-step architecture, feature engineering flow |
+| 🧠 **Resume Intelligence** | Screen any resume | Single screener, batch upload, CV compare, ATS score, interview Q generator, HTML export |
+| 💼 **Recommendation Engine** | Find the best candidate | JD matcher, top-N ranked candidates, skill gap matrix, shortlist manager, salary estimator |
+| ⚙️ **ML Models** | Understand the algorithms | Model cards, live predictor (all 4 models), hyperparameter config, feature importance |
+| 📊 **Candidate Analytics** | Dataset insights | Category distribution, skill frequency, experience histograms, candidate lookup |
+| 📈 **Performance Metrics** | Model comparison | Leaderboard cards, comparison radar, confusion matrix, per-category F1, ROC curves |
+| 🚀 **Recruiter Workspace** | Manage hiring pipeline | Bookmark candidates, pipeline board, interview notes + ratings, CSV export, to-do list |
+| 👥 **About** | Project context | Team profiles, tech stack, project structure, future enhancements |
 
-- **➕ Add Candidate** — Bookmark any candidate with name, role, experience, education, confidence score, skills, salary expectation, source, and priority tag
-- **📋 Pipeline Board** — Visual funnel bar, search/filter, per-candidate stage updates, remove candidates
-- **📝 Interview Notes** — Add timestamped notes per candidate per stage; quick rating sliders for Technical Skills, Communication, Culture Fit, Problem Solving
-- **📤 Export & Reports** — Download CSV shortlist filtered by stage, pipeline donut chart, hiring to-do list
+---
+
+## 🔄 End-to-End Pipeline
+
+```
+Raw Resume (PDF / Text)
+        │
+        ▼
+  Text Extraction (pdfplumber)
+        │
+        ▼
+  NLP Preprocessing (NLTK)
+  ├── Lowercasing
+  ├── URL & email removal
+  ├── Punctuation removal
+  ├── Stopword removal
+  └── Lemmatization (WordNetLemmatizer)
+        │
+        ▼
+  Feature Engineering
+  ├── TF-IDF Vectorizer (3,000 features, ngram 1-2)
+  ├── Experience Years (regex extraction)
+  ├── Skill Count (vocabulary matching, 80+ terms)
+  └── Education Level (keyword-to-ordinal encoding)
+        │
+        ▼
+  ColumnTransformer Pipeline
+  ├── TF-IDF branch (sparse text features)
+  └── StandardScaler branch (numeric features)
+        │
+        ▼
+  Classification (4 Models)
+  ├── SVM (LinearSVC + CalibratedClassifierCV) — 98.75% ← Production
+  ├── Random Forest (GridSearchCV)              — 98.15%
+  ├── Logistic Regression (saga, L2)            — 97.00%
+  └── XGBoost (RandomizedSearchCV)              — 96.50%
+        │
+        ▼
+  Recommendation Engine
+  ├── Cosine Similarity — TF-IDF match (60%)
+  ├── Experience Score (20%)
+  └── Skill Coverage Score (20%)
+        │
+        ▼
+  Output: Role · Confidence · ATS Score · Top-5 · Skill Gap · Salary Range
+```
+
+---
+
+## 🧠 Feature Engineering Details
+
+| Feature | Method | Dimensions |
+|---|---|---|
+| TF-IDF Text | `TfidfVectorizer(max_features=3000, ngram_range=(1,2), sublinear_tf=True)` | 3,000 |
+| Experience Years | Regex pattern matching on resume text | 1 |
+| Skill Count | Vocabulary matching against 80+ technical terms | 1 |
+| Education Level | Keyword detection → ordinal (0–4) | 1 |
+| **Total Input** | `ColumnTransformer` combined output | **3,003** |
+
+---
+
+## 📊 Dataset
+
+| Property | Value |
+|---|---|
+| Source | Kaggle Resume Dataset + custom augmentation |
+| Total Records | 2,400+ labelled resumes |
+| Job Categories | 42 |
+| Train Split | 80% stratified (~1,920 samples) |
+| Test Split | 20% stratified (~480 samples) |
+| Language | English |
+
+**42 Categories include:** Data Science · Python Developer · Java Developer · Web Designing · DevOps Engineer · Network Security Engineer · SQL Developer · Blockchain · Testing · Business Analyst · Mechanical Engineer · Civil Engineer · Electrical Engineering · HR · Sales · Finance · Project Manager · Teacher · and 24 more.
+
+---
+
+## 🚀 Recruiter Workspace
+
+A fully integrated hiring management module — no external ATS needed:
+
+| Tab | Features |
+|---|---|
+| **➕ Add Candidate** | Name, role, experience, education, confidence %, skills, stage, priority, source, salary, email, note |
+| **📋 Pipeline Board** | Visual funnel bar · Search/filter · Stage updates (Applied → Offer) · Remove candidates |
+| **📝 Interview Notes** | Per-candidate notes with stage context · Quick rating sliders (Technical, Communication, Culture Fit, Problem Solving) |
+| **📤 Export & Reports** | CSV shortlist download · Pipeline donut chart · Hiring to-do list |
+
+KPI strip at top: Total Bookmarked · In Interview · Offers Made · Rejected
+
+---
+
+## 🔮 Future Enhancements
+
+| # | Feature | Category |
+|---|---|---|
+| 🗄️ | **Persistent Cloud Database** — Supabase PostgreSQL for permanent data across sessions | Infrastructure |
+| 📧 | **Automated Shortlisting Emails** — Auto-draft + recruiter approval before Gmail SMTP send | Automation |
+| 🧠 | **GPT-Powered Resume Feedback** — LLM-generated personalised CV improvement suggestions | AI / LLM |
+| 🌐 | **LinkedIn Profile Scraper** — Paste URL → auto-extract candidate details | Integration |
+| 🎥 | **Video Interview Analyser** — Whisper STT + sentiment scoring of recorded interviews | AI / NLP |
+| ⚖️ | **Bias & Fairness Auditor** — Detect demographic bias in shortlisting decisions | Ethics / ML |
+| 📱 | **Mobile Candidate Portal** — Candidate-facing app for submission & status tracking | UX / Product |
+| 🔁 | **Active Learning & Retraining** — Recruiter feedback loop to continuously improve models | MLOps |
 
 ---
 
@@ -108,32 +160,39 @@ A fully featured hiring command centre built into the app:
 
 ```
 AIRECRUIT/
-├── app.py                           # Streamlit application (4,400+ lines)
-├── requirements.txt                 # Pinned dependencies
+├── app.py                                     # Streamlit application (4,600+ lines)
+├── requirements.txt                           # Pinned dependencies
+├── PROJECT_REPORT.md                          # Full academic project report
+│
 ├── .streamlit/
-│   └── config.toml                  # Dark theme + server config (port 5000)
+│   └── config.toml                            # Dark theme + port 5000 config
+│
 ├── notebooks/
-│   ├── 01_EDA.ipynb                 # Exploratory data analysis
+│   ├── 01_EDA.ipynb                           # Exploratory Data Analysis
 │   ├── 02_Preprocessing_Feature_Engineering.ipynb
-│   ├── 03_Model_Training.ipynb      # Training + hyperparameter tuning
+│   ├── 03_Model_Training.ipynb                # Training + hyperparameter tuning
 │   └── 04_Evaluation_Recommendation_System.ipynb
+│
 ├── models/
-│   ├── svm_pipeline.pkl             # Production model (98.75%)
+│   ├── svm_pipeline.pkl                       # Production model — 98.75%
 │   ├── logistic_regression_pipeline.pkl
 │   ├── random_forest_pipeline.pkl
 │   ├── xgboost_pipeline.pkl
-│   ├── tfidf_match.pkl              # For recommendation engine
-│   ├── kmeans.pkl                   # Candidate clustering (k=10)
+│   ├── tfidf_match.pkl                        # Recommendation engine TF-IDF
+│   ├── kmeans.pkl                             # Clustering model (k=10)
 │   └── preprocessor.pkl
+│
 ├── data/
-│   ├── cleaned_resume_data.csv      # 2,400+ labelled resumes
+│   ├── cleaned_resume_data.csv                # 2,400+ labelled resumes
 │   ├── processed_jobs.csv
 │   ├── train_df.csv / test_df.csv
 │   └── ...
+│
 ├── outputs/
 │   ├── final_resume_data_with_clusters.csv
 │   ├── final_jobs_data.csv
 │   └── model_comparison_results.csv
+│
 └── plots/
     ├── confusion_matrix.png
     ├── roc_curves.png
@@ -144,57 +203,59 @@ AIRECRUIT/
 
 ## 🛠 Tech Stack
 
-| Layer | Technology |
-|---|---|
-| **Language** | Python 3.12 |
-| **UI Framework** | Streamlit 1.41.1 |
-| **ML / NLP** | Scikit-Learn 1.6.1, XGBoost 2.1.3, NLTK |
-| **Feature Engineering** | TF-IDF (3,000 features), ColumnTransformer, StandardScaler |
-| **Data Processing** | Pandas 2.2.2, NumPy 2.2.0, SciPy 1.15.0 |
-| **Visualizations** | Plotly 5.22.0, Matplotlib 3.10.0, Seaborn 0.13.2 |
-| **PDF Parsing** | pdfplumber 0.10.3 |
-| **Clustering** | K-Means (k=10, Elbow + Silhouette + Davies-Bouldin) |
-| **Recommendation** | Cosine Similarity (TF-IDF) + experience + skill scoring |
-| **Persistence** | Joblib 1.4.2 |
+| Layer | Technology | Version |
+|---|---|---|
+| Language | Python | 3.12 |
+| Web Framework | Streamlit | 1.41.1 |
+| ML / Classification | Scikit-Learn | 1.6.1 |
+| Gradient Boosting | XGBoost | 2.1.3 |
+| NLP | NLTK | 3.8.1 |
+| Data Processing | Pandas | 2.2.2 |
+| Numerical | NumPy | 2.2.0 |
+| Scientific | SciPy | 1.15.0 |
+| Visualisations | Plotly | 5.22.0 |
+| Visualisations | Matplotlib + Seaborn | 3.10.0 / 0.13.2 |
+| PDF Parsing | pdfplumber | 0.10.3 |
+| Model Persistence | Joblib | 1.4.2 |
 
 ---
 
 ## ⚙️ Running Locally
 
 ```bash
-# Clone the repository
-git clone <repo-url>
+# 1. Clone the repository
+git clone <repository-url>
 cd AIRECRUIT
 
-# Install dependencies
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# Run the app
+# 3. Download NLTK data (first run only)
+python -c "import nltk; nltk.download('stopwords'); nltk.download('wordnet')"
+
+# 4. Launch the app
 streamlit run app.py --server.port 5000 --server.address 0.0.0.0
 ```
+
+Then open `http://localhost:5000` in your browser.
 
 ---
 
 ## 👥 Team
 
-| Member | Role | Contributions |
+| Member | Role | Key Contributions |
 |---|---|---|
-| **Hania** | Data Engineer & Preprocessing | Dataset collection, cleaning, normalisation, EDA, TF-IDF vectorisation |
-| **Areeba** | Machine Learning Engineer | Model development, Random Forest, SVM, XGBoost, hyperparameter tuning |
-| **Hajra Sarwar** | System Integration & Deployment | UI/UX, recommendation engine, dashboard design, final deployment |
+| **Hania** | Data Engineer & Preprocessing Lead | Dataset curation, NLP pipeline, EDA, TF-IDF strategy, ColumnTransformer design |
+| **Areeba** | Machine Learning Engineer | SVM, RF, LR, XGBoost implementation, hyperparameter tuning, clustering, evaluation |
+| **Hajra Sarwar** | System Integration & Deployment Lead | Streamlit app (9 pages), recommendation engine, UI/UX, Recruiter Workspace, deployment |
 
-**Supervisor:** Dr. Aamir Arsalan  
-**Course:** SE-CD-638 Machine Learning  
-**Semester:** VI, 2026–2027
+**Supervisor:** Dr. Aamir Arsalan &nbsp;·&nbsp; **Course:** SE-CD-638 Machine Learning &nbsp;·&nbsp; **Semester:** VI, 2026–2027
 
 ---
 
-## 📊 Dataset
+## 📖 Documentation
 
-- **Source:** Kaggle Resume Dataset + custom augmentation
-- **Size:** 2,400+ labelled resumes across 42 job categories
-- **Categories include:** Data Science, Python Developer, Java Developer, DevOps Engineer, Web Designing, Blockchain, Network Security Engineer, Database, HR, Sales, and 32 more
-- **Train/Test Split:** Stratified 80/20
+For the full academic project report including literature review, methodology, mathematical formulations, experimental analysis, and references, see **[PROJECT_REPORT.md](PROJECT_REPORT.md)**.
 
 ---
 
