@@ -45,8 +45,37 @@ html, body, [class*="css"] {
     background-color: #0B0D10 !important;
     color: #F0EDE6 !important;
 }
-#MainMenu, footer, header { visibility: hidden; }
-[data-testid="collapsedControl"] { visibility: visible !important; display: flex !important; }
+#MainMenu, footer { visibility: hidden; }
+header { background: transparent !important; border-bottom: none !important; }
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stDeployButton"],
+[data-testid="stStatusWidget"] { display: none !important; visibility: hidden !important; }
+[data-testid="collapsedControl"] {
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(13,15,20,0.92) !important;
+    border: 1px solid rgba(214,178,94,0.35) !important;
+    border-left: none !important;
+    border-radius: 0 8px 8px 0 !important;
+    z-index: 999999 !important;
+    min-width: 26px !important;
+    min-height: 44px !important;
+    cursor: pointer !important;
+}
+[data-testid="collapsedControl"] svg {
+    color: #D6B25E !important;
+    stroke: #D6B25E !important;
+    fill: none !important;
+}
+[data-testid="collapsedControl"] button {
+    background: transparent !important;
+    border: none !important;
+    color: #D6B25E !important;
+}
 .block-container {
     padding: 2rem 2.5rem !important;
     max-width: 1400px !important;
@@ -1343,6 +1372,62 @@ elif page == "🧠 Resume Intelligence":
                                     for q in iq_list
                                 )
                                 st.markdown(iq_html, unsafe_allow_html=True)
+
+                                # ── Candidate Fit Score Radar ──
+                                st.markdown("<br>", unsafe_allow_html=True)
+                                st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;'>Candidate Fit Score</div>", unsafe_allow_html=True)
+                                st.markdown("<div style='font-size:12px;color:#6B6560;margin-bottom:12px;'>Five-dimensional profile across key hiring signals.</div>", unsafe_allow_html=True)
+
+                                _skill_score = min(len([s for s in [
+                                    "python","java","sql","javascript","r","c++","machine learning",
+                                    "deep learning","tensorflow","pytorch","aws","azure","docker",
+                                    "kubernetes","git","linux","excel","tableau","power bi","spark",
+                                    "hadoop","react","node","django","flask","spring","nlp",
+                                    "computer vision","data analysis","mongodb","postgresql"
+                                ] if s in text_lower]) / 12 * 100, 100)
+                                _depth_score  = min(len(resume_text.split()) / 350 * 100, 100)
+                                _top2_prob    = float(pred_prob[np.argsort(pred_prob)[::-1][1]]) * 100
+                                _certainty    = min((conf - _top2_prob) * 2.5, 100)
+
+                                _radar_cats  = ["Confidence", "ATS Readiness", "Skill Coverage", "Resume Depth", "Role Certainty"]
+                                _radar_vals  = [round(conf,1), float(ats_score), round(_skill_score,1), round(_depth_score,1), round(_certainty,1)]
+                                _radar_vals_closed = _radar_vals + [_radar_vals[0]]
+                                _cats_closed = _radar_cats + [_radar_cats[0]]
+
+                                fig_radar = go.Figure()
+                                fig_radar.add_trace(go.Scatterpolar(
+                                    r=_radar_vals_closed,
+                                    theta=_cats_closed,
+                                    fill='toself',
+                                    fillcolor='rgba(214,178,94,0.12)',
+                                    line=dict(color='#D6B25E', width=2),
+                                    marker=dict(color='#D6B25E', size=6),
+                                    hovertemplate='<b>%{theta}</b><br>%{r:.1f}%<extra></extra>',
+                                ))
+                                fig_radar.update_layout(
+                                    polar=dict(
+                                        bgcolor='rgba(0,0,0,0)',
+                                        radialaxis=dict(
+                                            visible=True, range=[0, 100],
+                                            tickfont=dict(size=8, color='#6B6560'),
+                                            gridcolor='rgba(214,178,94,0.1)',
+                                            linecolor='rgba(214,178,94,0.1)',
+                                            ticksuffix='%',
+                                        ),
+                                        angularaxis=dict(
+                                            tickfont=dict(size=10, color='#A89F92'),
+                                            gridcolor='rgba(214,178,94,0.1)',
+                                            linecolor='rgba(214,178,94,0.15)',
+                                        ),
+                                    ),
+                                    paper_bgcolor='rgba(0,0,0,0)',
+                                    plot_bgcolor='rgba(0,0,0,0)',
+                                    font=dict(family='Inter', color='#A89F92'),
+                                    height=280,
+                                    margin=dict(l=40, r=40, t=20, b=20),
+                                    showlegend=False,
+                                )
+                                st.plotly_chart(fig_radar, use_container_width=True, config={'displayModeBar': False})
 
                                 import datetime as _dt
                                 text_lower_h = resume_text.lower()
