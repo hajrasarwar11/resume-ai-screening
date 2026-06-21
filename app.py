@@ -984,6 +984,40 @@ def build_input_df(text: str) -> "pd.DataFrame":
     })
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HELPER — sklearn-version-safe prediction (handles LR multi_class removal
+#          in sklearn 1.9 and XGBoost __sklearn_tags__ incompatibility)
+# ─────────────────────────────────────────────────────────────────────────────
+import scipy.sparse as _sp_pred
+from scipy.special import softmax as _softmax_pred
+
+def safe_predict(mk: str, m, input_df: "pd.DataFrame"):
+    """Return (class_int, prob_array). Falls back to native APIs on version mismatch."""
+    try:
+        enc  = int(m.predict(input_df)[0])
+        prob = m.predict_proba(input_df)[0]
+        return enc, prob
+    except Exception:
+        pass
+    prep = m.named_steps['prep']
+    clf  = m.named_steps['clf']
+    X_tr = prep.transform(input_df)
+    if _sp_pred.issparse(X_tr):
+        X_tr = X_tr.toarray()
+    if mk == 'xgb':
+        import xgboost as _xgb_nat
+        booster = clf.get_booster()
+        dmat    = _xgb_nat.DMatrix(X_tr)
+        raw     = booster.predict(dmat)
+        prob    = raw[0] if raw.ndim > 1 else raw
+        enc     = int(np.argmax(prob))
+    else:
+        scores = clf.decision_function(X_tr)
+        row    = scores[0] if scores.ndim > 1 else scores
+        prob   = _softmax_pred(row)
+        enc    = int(np.argmax(prob))
+    return enc, prob
+
+# ─────────────────────────────────────────────────────────────────────────────
 # SIDEBAR
 # ─────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -1011,6 +1045,7 @@ with st.sidebar:
         "⚙️ ML Models",
         "📊 Candidate Analytics",
         "📈 Performance Metrics",
+        "🚀 Recruiter Workspace",
         "👥 About"
     ]
     if "nav_radio" not in st.session_state:
@@ -2369,13 +2404,12 @@ elif page == "⚙️ ML Models":
                     try:
                         m = models[mk]
                         input_df_lc = build_input_df(lc_text)
-                        enc  = m.predict(input_df_lc)[0]
-                        prob = m.predict_proba(input_df_lc)[0]
+                        enc, prob = safe_predict(mk, m, input_df_lc)
                         sorted_idx = np.argsort(prob)[::-1]
                         result_cards.append({
                             "model": mname, "color": color,
                             "role": CATEGORY_MAP.get(enc, f"Cat {enc}"),
-                            "conf": prob.max() * 100,
+                            "conf": float(prob.max()) * 100,
                             "top3": [(CATEGORY_MAP.get(int(sorted_idx[i]), f"Cat {sorted_idx[i]}"),
                                       float(prob[sorted_idx[i]]) * 100) for i in range(min(3, len(prob)))],
                         })
@@ -3940,55 +3974,67 @@ elif page == "📈 Performance Metrics":
     with tab2:
         st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
 
-        # Leaderboard ranking cards
+        # Leaderboard ranking cards — unified single card per model
         lb_medals = ["🥇", "🥈", "🥉", "④"]
         lb_colors = ["#D6B25E", "#A89F92", "#8C7A5B", "#6B6560"]
         lb_data = list(comp.iterrows())
 
         for ri, (_, row) in enumerate(lb_data):
-            medal = lb_medals[ri]
-            color = lb_colors[ri]
-            is_top = ri == 0
-            overall = ((row["Accuracy"] + row["Precision"] + row["Recall"] + row["F1-Score"]) / 4) * 100
+            medal      = lb_medals[ri]
+            color      = lb_colors[ri]
+            is_top     = ri == 0
+            overall    = ((row["Accuracy"] + row["Precision"] + row["Recall"] + row["F1-Score"]) / 4) * 100
             rank_label = "Production Model" if is_top else "Challenger"
             border_col = "rgba(214,178,94,0.55)" if is_top else "rgba(214,178,94,0.14)"
-            bg_col = "rgba(214,178,94,0.04)" if is_top else "rgba(255,255,255,0.015)"
-            best_badge = ("<span style='background:#D6B25E;color:#0B0D10;font-size:8px;font-weight:700;"
-                          "padding:2px 8px;border-radius:20px;letter-spacing:1px;'>BEST MODEL</span>") if is_top else ""
+            bg_col     = "rgba(214,178,94,0.05)" if is_top else "rgba(255,255,255,0.018)"
+            best_badge = (
+                "<span style='background:#D6B25E;color:#0B0D10;font-size:8px;font-weight:700;"
+                "padding:2px 10px;border-radius:20px;letter-spacing:1px;margin-left:10px;"
+                "vertical-align:middle;'>BEST MODEL</span>"
+            ) if is_top else ""
             model_name = str(row["Model"])
 
-            # Card header — no embedded HTML variable containing multiline HTML
+            # Build metric cells inside the same card
+            metric_cells = ""
+            for m_name_s, m_key in [("Accuracy","Accuracy"),("Precision","Precision"),
+                                     ("Recall","Recall"),("F1-Score","F1-Score")]:
+                val   = row[m_key]
+                bar_w = max(0, min(100, (val - 0.94) / 0.06 * 100))
+                metric_cells += (
+                    f"<div style='flex:1;min-width:110px;padding:0 8px;border-right:1px solid rgba(214,178,94,0.08);'>"
+                    f"<div style='font-size:8px;text-transform:uppercase;letter-spacing:1.5px;"
+                    f"color:#6B6560;margin-bottom:5px;'>{m_name_s}</div>"
+                    f"<div style='font-size:16px;font-weight:700;color:{color};margin-bottom:8px;'>{val*100:.2f}%</div>"
+                    f"<div style='height:3px;background:rgba(214,178,94,0.08);border-radius:2px;'>"
+                    f"<div style='height:100%;width:{bar_w:.1f}%;background:{color};border-radius:2px;'></div>"
+                    f"</div></div>"
+                )
+
+            # Single unified card
             st.markdown(
-                f"<div style='border:1px solid {border_col};background:{bg_col};border-radius:14px;"
-                f"padding:18px 22px 12px;margin-bottom:4px;'>"
-                f"<div style='display:flex;align-items:center;justify-content:space-between;'>"
-                f"<div style='display:flex;align-items:center;gap:14px;'>"
-                f"<span style='font-size:2rem;line-height:1;'>{medal}</span>"
-                f"<div><div style='font-family:serif;font-size:1.05rem;font-weight:700;color:#F0EDE6;'>{model_name} {best_badge}</div>"
-                f"<div style='font-size:10px;color:#6B6560;margin-top:2px;'>Rank #{ri+1} · {rank_label}</div></div></div>"
+                f"<div style='border:1px solid {border_col};background:{bg_col};border-radius:16px;"
+                f"padding:22px 26px;margin-bottom:18px;'>"
+                # ── header row ──
+                f"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;'>"
+                f"<div style='display:flex;align-items:center;gap:16px;'>"
+                f"<span style='font-size:2.2rem;line-height:1;'>{medal}</span>"
+                f"<div>"
+                f"<div style='font-family:Playfair Display,serif;font-size:1.15rem;font-weight:700;"
+                f"color:#F0EDE6;margin-bottom:4px;'>{model_name}{best_badge}</div>"
+                f"<div style='font-size:10px;color:#6B6560;letter-spacing:0.5px;'>"
+                f"Rank #{ri+1} &nbsp;·&nbsp; {rank_label}</div>"
+                f"</div></div>"
                 f"<div style='text-align:right;'>"
-                f"<div style='font-size:8px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Overall Score</div>"
-                f"<div style='font-size:1.3rem;font-weight:700;color:{color};'>{overall:.2f}%</div>"
-                f"</div></div></div>",
+                f"<div style='font-size:8px;color:#6B6560;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;'>Overall Score</div>"
+                f"<div style='font-size:1.6rem;font-weight:700;color:{color};'>{overall:.2f}%</div>"
+                f"</div></div>"
+                # ── divider ──
+                f"<div style='height:1px;background:rgba(214,178,94,0.12);margin-bottom:18px;'></div>"
+                # ── metric cells ──
+                f"<div style='display:flex;gap:0;flex-wrap:wrap;'>{metric_cells}</div>"
+                f"</div>",
                 unsafe_allow_html=True
             )
-
-            # Metrics row — native columns, no embedded HTML vars
-            m_cols = st.columns(4)
-            for mc, (m_name_s, m_key) in zip(m_cols, [("Accuracy","Accuracy"),("Precision","Precision"),("Recall","Recall"),("F1-Score","F1-Score")]):
-                val = row[m_key]
-                bar_w = max(0, min(100, (val - 0.94) / 0.06 * 100))
-                with mc:
-                    st.markdown(
-                        f"<div style='border:1px solid {border_col};background:{bg_col};border-radius:0 0 10px 10px;"
-                        f"padding:10px 14px;margin-bottom:12px;'>"
-                        f"<div style='font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#6B6560;margin-bottom:3px;'>{m_name_s}</div>"
-                        f"<div style='font-size:13px;font-weight:700;color:{color};margin-bottom:5px;'>{val*100:.2f}%</div>"
-                        f"<div style='height:3px;background:rgba(214,178,94,0.08);border-radius:2px;'>"
-                        f"<div style='height:100%;width:{bar_w:.1f}%;background:{color};border-radius:2px;'></div>"
-                        f"</div></div>",
-                        unsafe_allow_html=True
-                    )
 
         # Animated comparison chart: metrics on X, one bar per model
         st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
@@ -4108,6 +4154,316 @@ elif page == "📈 Performance Metrics":
                 {tags_html}
             </div>
             """, unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: RECRUITER WORKSPACE
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "🚀 Recruiter Workspace":
+
+    # ── Session-state init ──
+    if "rw_candidates" not in st.session_state:
+        st.session_state.rw_candidates = []       # list of dicts
+    if "rw_notes"      not in st.session_state:
+        st.session_state.rw_notes = {}
+    if "rw_todos"      not in st.session_state:
+        st.session_state.rw_todos = []
+
+    st.markdown("""
+    <div style='padding: 48px 0 8px;'>
+        <div class='section-eyebrow'>Section 08 · Hiring Intelligence</div>
+        <div class='section-title'>Recruiter Workspace</div>
+        <div class='section-sub'>
+            Your private command centre — bookmark candidates, track hiring stages,
+            write interview notes, and export shortlists in one place.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("<div class='section-rule'></div>", unsafe_allow_html=True)
+
+    # ── KPI strip ──
+    rw_total   = len(st.session_state.rw_candidates)
+    rw_stages  = [c.get("status","Applied") for c in st.session_state.rw_candidates]
+    rw_interviews = rw_stages.count("Interview")
+    rw_offers     = rw_stages.count("Offer")
+    rw_rejected   = rw_stages.count("Rejected")
+
+    kc1, kc2, kc3, kc4 = st.columns(4)
+    for col, val, lbl, clr in zip(
+        [kc1, kc2, kc3, kc4],
+        [rw_total, rw_interviews, rw_offers, rw_rejected],
+        ["Total Bookmarked", "In Interview", "Offers Made", "Rejected"],
+        ["#D6B25E",          "#8C7A5B",      "#A89F92",    "#6B6560"]
+    ):
+        with col:
+            st.markdown(f"""
+            <div class='metric-glass' style='border-left:3px solid {clr};'>
+                <div class='metric-glass-val' style='font-size:1.8rem;color:{clr};'>{val}</div>
+                <div class='metric-glass-lbl'>{lbl}</div>
+            </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    rw_tab1, rw_tab2, rw_tab3, rw_tab4 = st.tabs([
+        "➕  Add Candidate", "📋  Pipeline Board", "📝  Interview Notes", "📤  Export & Reports"
+    ])
+
+    # ── Tab 1: Add Candidate ──
+    with rw_tab1:
+        st.markdown("<div style='margin-top:14px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='info-banner'>Manually bookmark any candidate — paste their name, role, and key details to track them through the hiring pipeline.</div>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        a1, a2 = st.columns([1.1, 1], gap="large")
+        with a1:
+            rw_name    = st.text_input("Candidate Name *", placeholder="e.g. Sara Ahmed", key="rw_add_name")
+            rw_role    = st.text_input("Predicted / Target Role *", placeholder="e.g. Data Science", key="rw_add_role")
+            rw_exp     = st.number_input("Years of Experience", min_value=0, max_value=40, value=2, key="rw_add_exp")
+            rw_edu     = st.selectbox("Education Level", ["High School","Bachelor","Master","PhD"], index=1, key="rw_add_edu")
+            rw_conf    = st.slider("Model Confidence (%)", 0, 100, 75, key="rw_add_conf")
+            rw_skills  = st.text_input("Key Skills (comma-separated)", placeholder="Python, SQL, TensorFlow", key="rw_add_skills")
+
+        with a2:
+            rw_status  = st.selectbox("Hiring Stage", ["Applied","Screening","Interview","Assessment","Offer","Rejected"], key="rw_add_status")
+            rw_priority = st.selectbox("Priority Tag", ["⭐ High","🔶 Medium","🔵 Low"], key="rw_add_priority")
+            rw_source  = st.selectbox("Source", ["LinkedIn","Indeed","Referral","Career Fair","Cold Apply","Other"], key="rw_add_source")
+            rw_salary  = st.text_input("Expected Salary", placeholder="e.g. PKR 120,000 / month", key="rw_add_salary")
+            rw_email   = st.text_input("Contact Email (optional)", placeholder="candidate@email.com", key="rw_add_email")
+            rw_init_note = st.text_area("Initial Note", height=96, placeholder="First impression, red flags, strengths...", key="rw_add_note")
+
+        if st.button("📌 Bookmark Candidate", key="rw_submit", use_container_width=True):
+            if rw_name.strip() and rw_role.strip():
+                import time as _time_rw
+                cid = f"C{int(_time_rw.time()*1000) % 999999:06d}"
+                st.session_state.rw_candidates.append({
+                    "id": cid, "name": rw_name.strip(), "role": rw_role.strip(),
+                    "exp": rw_exp, "edu": rw_edu, "conf": rw_conf,
+                    "skills": rw_skills.strip(), "status": rw_status,
+                    "priority": rw_priority, "source": rw_source,
+                    "salary": rw_salary.strip(), "email": rw_email.strip(),
+                })
+                if rw_init_note.strip():
+                    st.session_state.rw_notes[cid] = [{"text": rw_init_note.strip(), "stage": rw_status}]
+                st.success(f"✓ {rw_name} bookmarked as **{cid}**")
+                st.rerun()
+            else:
+                st.warning("Name and Role are required.")
+
+    # ── Tab 2: Pipeline Board ──
+    with rw_tab2:
+        st.markdown("<div style='margin-top:14px;'></div>", unsafe_allow_html=True)
+        if not st.session_state.rw_candidates:
+            st.markdown("<div class='info-banner'>No candidates yet — add some from the ➕ Add Candidate tab.</div>", unsafe_allow_html=True)
+        else:
+            stage_order = ["Applied","Screening","Interview","Assessment","Offer","Rejected"]
+            stage_colors = {
+                "Applied":    "#6B6560", "Screening": "#8C7A5B",
+                "Interview":  "#D6B25E", "Assessment":"#A89F92",
+                "Offer":      "#4CAF50", "Rejected":  "#E57373"
+            }
+
+            # Search + filter bar
+            sf1, sf2 = st.columns([2, 1])
+            with sf1:
+                search_q = st.text_input("🔍 Search candidates", placeholder="Name or role...", key="rw_search", label_visibility="collapsed")
+            with sf2:
+                filter_stage = st.selectbox("Filter by Stage", ["All"] + stage_order, key="rw_filter_stage", label_visibility="collapsed")
+
+            filtered = [
+                c for c in st.session_state.rw_candidates
+                if (not search_q or search_q.lower() in c["name"].lower() or search_q.lower() in c["role"].lower())
+                and (filter_stage == "All" or c.get("status","Applied") == filter_stage)
+            ]
+
+            # Progress funnel bar
+            stage_counts = {s: sum(1 for c in st.session_state.rw_candidates if c.get("status","Applied")==s) for s in stage_order}
+            max_cnt = max(stage_counts.values()) if any(stage_counts.values()) else 1
+            funnel_html = "<div style='display:flex;gap:8px;margin-bottom:24px;align-items:flex-end;'>"
+            for s in stage_order:
+                cnt = stage_counts[s]
+                h   = max(18, int(cnt / max_cnt * 56))
+                clr = stage_colors[s]
+                funnel_html += (
+                    f"<div style='flex:1;text-align:center;'>"
+                    f"<div style='font-size:11px;font-weight:700;color:{clr};margin-bottom:4px;'>{cnt}</div>"
+                    f"<div style='height:{h}px;background:{clr};opacity:0.8;border-radius:4px 4px 0 0;'></div>"
+                    f"<div style='font-size:9px;color:#6B6560;margin-top:4px;text-transform:uppercase;letter-spacing:1px;'>{s}</div>"
+                    f"</div>"
+                )
+            funnel_html += "</div>"
+            st.markdown(funnel_html, unsafe_allow_html=True)
+
+            st.markdown(f"<div style='font-size:12px;color:#8C7A5B;margin-bottom:16px;'>Showing {len(filtered)} of {rw_total} candidates</div>", unsafe_allow_html=True)
+
+            for c in filtered:
+                cid    = c["id"]
+                sclr   = stage_colors.get(c.get("status","Applied"), "#6B6560")
+                prio_clr = "#D6B25E" if "High" in c.get("priority","") else "#8C7A5B" if "Medium" in c.get("priority","") else "#6B6560"
+                skills_html = "".join(
+                    f"<span style='display:inline-block;background:rgba(214,178,94,0.1);"
+                    f"border:1px solid rgba(214,178,94,0.25);border-radius:20px;padding:2px 8px;"
+                    f"font-size:10px;color:#D6B25E;margin:2px;'>{sk.strip()}</span>"
+                    for sk in c.get("skills","").split(",") if sk.strip()
+                )
+
+                with st.expander(f"{c['priority']}  {c['name']}  ·  {c['role']}  ·  {c.get('status','Applied')}", expanded=False):
+                    ex1, ex2 = st.columns([1.5, 1])
+                    with ex1:
+                        st.markdown(
+                            f"<div style='margin-bottom:10px;'>"
+                            f"<span style='font-size:9px;color:#6B6560;text-transform:uppercase;letter-spacing:1.5px;'>ID</span>"
+                            f"<span style='font-size:12px;color:#A89F92;margin-left:8px;'>{cid}</span>"
+                            f"&nbsp;&nbsp;"
+                            f"<span style='font-size:9px;color:#6B6560;text-transform:uppercase;letter-spacing:1.5px;'>Source</span>"
+                            f"<span style='font-size:12px;color:#A89F92;margin-left:8px;'>{c.get('source','—')}</span>"
+                            f"</div>"
+                            f"<div style='margin-bottom:8px;'>{skills_html if skills_html else '<span style=\"color:#6B6560;font-size:12px;\">No skills listed</span>'}</div>"
+                            f"<div style='font-size:12px;color:#A89F92;'>"
+                            f"🎓 {c.get('edu','—')} &nbsp;·&nbsp; "
+                            f"⏱ {c.get('exp',0)} yrs &nbsp;·&nbsp; "
+                            f"🎯 {c.get('conf',0)}% confidence &nbsp;·&nbsp; "
+                            f"💰 {c.get('salary','—')}"
+                            f"</div>"
+                            f"{'<div style=\"font-size:12px;color:#A89F92;margin-top:6px;\">✉️ ' + c.get('email','') + '</div>' if c.get('email') else ''}",
+                            unsafe_allow_html=True
+                        )
+                    with ex2:
+                        new_status = st.selectbox(
+                            "Update Stage", stage_order,
+                            index=stage_order.index(c.get("status","Applied")),
+                            key=f"rw_stage_{cid}"
+                        )
+                        if st.button("✓ Update Stage", key=f"rw_upd_{cid}"):
+                            for cc in st.session_state.rw_candidates:
+                                if cc["id"] == cid:
+                                    cc["status"] = new_status
+                            st.rerun()
+                        if st.button("🗑 Remove", key=f"rw_del_{cid}"):
+                            st.session_state.rw_candidates = [cc for cc in st.session_state.rw_candidates if cc["id"] != cid]
+                            st.rerun()
+
+    # ── Tab 3: Interview Notes ──
+    with rw_tab3:
+        st.markdown("<div style='margin-top:14px;'></div>", unsafe_allow_html=True)
+        if not st.session_state.rw_candidates:
+            st.markdown("<div class='info-banner'>Add candidates first to start taking notes.</div>", unsafe_allow_html=True)
+        else:
+            note_names = [f"{c['name']} ({c['id']})" for c in st.session_state.rw_candidates]
+            sel_note   = st.selectbox("Select Candidate", note_names, key="rw_note_sel")
+            sel_idx    = note_names.index(sel_note)
+            sel_cand   = st.session_state.rw_candidates[sel_idx]
+            sel_cid    = sel_cand["id"]
+
+            n1, n2 = st.columns([1.2, 1], gap="large")
+            with n1:
+                st.markdown(f"<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;'>Notes for {sel_cand['name']}</div>", unsafe_allow_html=True)
+                existing = st.session_state.rw_notes.get(sel_cid, [])
+                if existing:
+                    for ni, note in enumerate(existing):
+                        st.markdown(
+                            f"<div style='background:rgba(214,178,94,0.05);border-left:2px solid rgba(214,178,94,0.4);"
+                            f"border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:10px;'>"
+                            f"<div style='font-size:9px;color:#6B6560;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px;'>"
+                            f"Note {ni+1} · Stage: {note.get('stage','—')}</div>"
+                            f"<div style='font-size:13px;color:#E8E0D0;line-height:1.65;'>{note['text']}</div>"
+                            f"</div>",
+                            unsafe_allow_html=True
+                        )
+                else:
+                    st.markdown("<div style='color:#6B6560;font-size:13px;'>No notes yet.</div>", unsafe_allow_html=True)
+
+            with n2:
+                st.markdown("<div style='font-size:11px;color:#8C7A5B;text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;'>Add New Note</div>", unsafe_allow_html=True)
+                new_note_stage = st.selectbox("Stage Context", ["Applied","Screening","Interview","Assessment","Offer","Rejected"], key="rw_new_note_stage")
+                new_note_text  = st.text_area("Note", height=150, placeholder="Write observations, red flags, strengths, interview performance...", key="rw_new_note_text")
+                if st.button("💾 Save Note", key="rw_save_note", use_container_width=True):
+                    if new_note_text.strip():
+                        if sel_cid not in st.session_state.rw_notes:
+                            st.session_state.rw_notes[sel_cid] = []
+                        st.session_state.rw_notes[sel_cid].append({"text": new_note_text.strip(), "stage": new_note_stage})
+                        st.success("Note saved!")
+                        st.rerun()
+                    else:
+                        st.warning("Write something before saving.")
+
+                # Rating section
+                st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+                st.markdown("<div style='font-size:11px;color:#8C7A5B;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;'>Quick Rating</div>", unsafe_allow_html=True)
+                for dim in ["Technical Skills","Communication","Culture Fit","Problem Solving"]:
+                    rating = st.select_slider(dim, options=["1 ★","2 ★★","3 ★★★","4 ★★★★","5 ★★★★★"], value="3 ★★★", key=f"rw_rating_{sel_cid}_{dim}")
+
+    # ── Tab 4: Export & Reports ──
+    with rw_tab4:
+        st.markdown("<div style='margin-top:14px;'></div>", unsafe_allow_html=True)
+        if not st.session_state.rw_candidates:
+            st.markdown("<div class='info-banner'>Add candidates first to generate exports.</div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:2px;margin-bottom:16px;'>Export Shortlist</div>", unsafe_allow_html=True)
+            exp_stage = st.multiselect("Filter Stages to Export", ["Applied","Screening","Interview","Assessment","Offer","Rejected"],
+                                       default=["Interview","Offer"], key="rw_exp_stages")
+            export_df = pd.DataFrame([
+                {
+                    "ID": c["id"], "Name": c["name"], "Role": c["role"],
+                    "Status": c.get("status","Applied"), "Priority": c.get("priority",""),
+                    "Experience (yrs)": c.get("exp",0), "Education": c.get("edu",""),
+                    "Confidence (%)": c.get("conf",0), "Skills": c.get("skills",""),
+                    "Source": c.get("source",""), "Salary": c.get("salary",""),
+                    "Email": c.get("email",""),
+                    "Notes": " | ".join(n["text"] for n in st.session_state.rw_notes.get(c["id"],[]))
+                }
+                for c in st.session_state.rw_candidates
+                if c.get("status","Applied") in (exp_stage or ["Applied","Screening","Interview","Assessment","Offer","Rejected"])
+            ])
+
+            st.markdown(f"<div style='font-size:12px;color:#8C7A5B;margin-bottom:12px;'>{len(export_df)} candidates will be exported.</div>", unsafe_allow_html=True)
+
+            if not export_df.empty:
+                csv_bytes = export_df.to_csv(index=False).encode()
+                st.download_button(
+                    "⬇ Download CSV Shortlist", data=csv_bytes,
+                    file_name="airecruit_shortlist.csv", mime="text/csv",
+                    use_container_width=True, key="rw_dl_csv"
+                )
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # Stage distribution donut
+                st.markdown("<div style='font-size:11px;color:#8C7A5B;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;'>Pipeline Distribution</div>", unsafe_allow_html=True)
+                all_stages   = [c.get("status","Applied") for c in st.session_state.rw_candidates]
+                stage_cnt    = {s: all_stages.count(s) for s in ["Applied","Screening","Interview","Assessment","Offer","Rejected"] if all_stages.count(s) > 0}
+                stage_clrs   = ["#6B6560","#8C7A5B","#D6B25E","#A89F92","#4CAF50","#E57373"]
+                fig_donut = go.Figure(go.Pie(
+                    labels=list(stage_cnt.keys()), values=list(stage_cnt.values()),
+                    hole=0.62,
+                    marker=dict(colors=stage_clrs[:len(stage_cnt)], line=dict(width=0)),
+                    textfont=dict(size=11, color='#F0EDE6'),
+                    hovertemplate='<b>%{label}</b><br>%{value} candidates<extra></extra>'
+                ))
+                fig_donut.update_layout(
+                    height=260, margin=dict(l=0, r=0, t=0, b=0),
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(family='Inter', color='#A89F92'),
+                    legend=dict(font=dict(size=11, color='#A89F92'), orientation='h', y=-0.1),
+                    showlegend=True
+                )
+                st.plotly_chart(fig_donut, use_container_width=True, config={'displayModeBar': False})
+
+                # To-do list
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;'>Hiring To-Do List</div>", unsafe_allow_html=True)
+                todo_input = st.text_input("Add a task", placeholder="e.g. Schedule interviews for Data Science shortlist", key="rw_todo_input")
+                if st.button("➕ Add Task", key="rw_todo_add"):
+                    if todo_input.strip():
+                        st.session_state.rw_todos.append({"task": todo_input.strip(), "done": False})
+                        st.rerun()
+                for ti, todo in enumerate(st.session_state.rw_todos):
+                    tc1, tc2 = st.columns([8, 1])
+                    with tc1:
+                        done = st.checkbox(todo["task"], value=todo["done"], key=f"rw_todo_chk_{ti}")
+                        st.session_state.rw_todos[ti]["done"] = done
+                    with tc2:
+                        if st.button("✕", key=f"rw_todo_del_{ti}"):
+                            st.session_state.rw_todos.pop(ti)
+                            st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
