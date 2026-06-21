@@ -803,35 +803,73 @@ code.inline {
 </style>
 """, unsafe_allow_html=True)
 
-# ── Sidebar icon text patch: change material icons to «/» via JS ──
+# ── Sidebar patch: move collapsedControl to body (escapes transform container) ──
 import streamlit.components.v1 as components
 components.html("""
 <script>
 (function() {
     var doc = window.parent.document;
 
-    function patchIcons() {
-        /* Collapse button inside sidebar — show « */
+    function styleExpandBtn(btn) {
+        btn.style.setProperty('position',       'fixed',                      'important');
+        btn.style.setProperty('left',           '0',                          'important');
+        btn.style.setProperty('top',            '50%',                        'important');
+        btn.style.setProperty('transform',      'translateY(-50%)',           'important');
+        btn.style.setProperty('visibility',     'visible',                    'important');
+        btn.style.setProperty('opacity',        '1',                          'important');
+        btn.style.setProperty('display',        'flex',                       'important');
+        btn.style.setProperty('align-items',    'center',                     'important');
+        btn.style.setProperty('justify-content','center',                     'important');
+        btn.style.setProperty('width',          '28px',                       'important');
+        btn.style.setProperty('height',         '52px',                       'important');
+        btn.style.setProperty('background',     '#13161B',                    'important');
+        btn.style.setProperty('border',         '1px solid rgba(214,178,94,0.45)', 'important');
+        btn.style.setProperty('border-left',    'none',                       'important');
+        btn.style.setProperty('border-radius',  '0 10px 10px 0',              'important');
+        btn.style.setProperty('z-index',        '2147483647',                 'important');
+        btn.style.setProperty('cursor',         'pointer',                    'important');
+        btn.style.setProperty('box-shadow',     '3px 0 16px rgba(0,0,0,0.6)', 'important');
+        /* inner icon */
+        var icon = btn.querySelector('[data-testid="stIconMaterial"]');
+        if (icon) {
+            if (icon.textContent.trim() !== '\u00BB') icon.textContent = '\u00BB';
+            icon.style.setProperty('color',     '#D6B25E', 'important');
+            icon.style.setProperty('font-size', '16px',    'important');
+        }
+        var svg = btn.querySelector('svg');
+        if (svg) {
+            svg.style.setProperty('stroke', '#D6B25E', 'important');
+            svg.style.setProperty('color',  '#D6B25E', 'important');
+        }
+    }
+
+    function patch() {
+        /* ── « collapse button inside sidebar ── */
         var colIcon = doc.querySelector('[data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"]');
         if (colIcon && colIcon.textContent !== '\u00AB') {
             colIcon.textContent = '\u00AB';
             var cb = colIcon.closest('button');
             if (cb) {
-                cb.style.background    = 'rgba(214,178,94,0.15)';
-                cb.style.border        = '1px solid rgba(214,178,94,0.55)';
-                cb.style.borderRadius  = '8px';
+                cb.style.background   = 'rgba(214,178,94,0.15)';
+                cb.style.border       = '1px solid rgba(214,178,94,0.55)';
+                cb.style.borderRadius = '8px';
             }
         }
-        /* Expand button shown when sidebar collapsed — show » */
-        var expIcon = doc.querySelector('[data-testid="collapsedControl"] [data-testid="stIconMaterial"]');
-        if (expIcon && expIcon.textContent !== '\u00BB') {
-            expIcon.textContent = '\u00BB';
+
+        /* ── » expand button: move to <body> to escape sidebar transform ── */
+        var expBtn = doc.querySelector('[data-testid="collapsedControl"]');
+        if (expBtn) {
+            /* Move to body if not already a direct child */
+            if (expBtn.parentElement !== doc.body) {
+                doc.body.appendChild(expBtn);
+            }
+            styleExpandBtn(expBtn);
         }
     }
 
-    patchIcons();
-    setInterval(patchIcons, 300);
-    new MutationObserver(patchIcons).observe(doc.body, {childList: true, subtree: true});
+    patch();
+    setInterval(patch, 200);
+    new MutationObserver(patch).observe(doc.body, {childList: true, subtree: true});
 })();
 </script>
 """, height=0)
@@ -3281,6 +3319,114 @@ elif page == "💼 Recommendation Engine":
                                     if st.button("🗑 Clear Shortlist", key="sl_clear"):
                                         st.session_state.shortlist = []
                                         st.rerun()
+
+                            # ── Candidate Comparison ──
+                            _rec_sl = [x for x in st.session_state.get('shortlist', []) if x.get('Resume ID')]
+                            if len(_rec_sl) >= 2:
+                                st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-top:24px;margin-bottom:4px;'>Candidate Comparison</div>", unsafe_allow_html=True)
+                                st.markdown("<div style='font-size:12px;color:#6B6560;margin-bottom:12px;'>Select two shortlisted candidates to compare side-by-side.</div>", unsafe_allow_html=True)
+                                _cmp_opts = [f"#{c['Rank']} · {c['Category']} · {c['Match %']}%" for c in _rec_sl]
+                                _cc1, _cc2 = st.columns(2)
+                                with _cc1:
+                                    _sel_a = st.selectbox("Candidate A", _cmp_opts, index=0, key="cmp_a")
+                                with _cc2:
+                                    _sel_b = st.selectbox("Candidate B", _cmp_opts, index=min(1, len(_cmp_opts)-1), key="cmp_b")
+
+                                _ca = _rec_sl[_cmp_opts.index(_sel_a)]
+                                _cb = _rec_sl[_cmp_opts.index(_sel_b)]
+
+                                # Comparison table
+                                _rows = [
+                                    ("Role Category",  _ca['Category'],                _cb['Category']),
+                                    ("Match Score",    f"{_ca['Match %']}%",           f"{_cb['Match %']}%"),
+                                    ("Rank",           f"#{_ca['Rank']}",              f"#{_cb['Rank']}"),
+                                    ("Experience",     f"{_ca.get('Experience',0):.0f} yrs", f"{_cb.get('Experience',0):.0f} yrs"),
+                                    ("Skill Count",    str(int(_ca.get('Skills',0))),  str(int(_cb.get('Skills',0)))),
+                                ]
+                                _tbl_rows = ""
+                                for label, va, vb in _rows:
+                                    try:
+                                        _fa = float(str(va).replace('%','').replace(' yrs','').replace('#',''))
+                                        _fb = float(str(vb).replace('%','').replace(' yrs','').replace('#',''))
+                                        _win_a = 'color:#D6B25E;font-weight:700;' if _fa >= _fb else 'color:#A89F92;'
+                                        _win_b = 'color:#D6B25E;font-weight:700;' if _fb > _fa  else 'color:#A89F92;'
+                                    except Exception:
+                                        _win_a = _win_b = 'color:#A89F92;'
+                                    _tbl_rows += (
+                                        f"<tr>"
+                                        f"<td style='padding:8px 14px;font-size:12px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid rgba(214,178,94,0.06);'>{label}</td>"
+                                        f"<td style='padding:8px 14px;font-size:13px;{_win_a}text-align:center;border-bottom:1px solid rgba(214,178,94,0.06);'>{va}</td>"
+                                        f"<td style='padding:8px 14px;font-size:13px;{_win_b}text-align:center;border-bottom:1px solid rgba(214,178,94,0.06);'>{vb}</td>"
+                                        f"</tr>"
+                                    )
+                                st.markdown(f"""
+                                <table style='width:100%;border-collapse:collapse;background:rgba(255,255,255,0.02);border-radius:10px;overflow:hidden;'>
+                                    <thead>
+                                        <tr>
+                                            <th style='padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;text-align:left;border-bottom:1px solid rgba(214,178,94,0.15);'>Metric</th>
+                                            <th style='padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#D6B25E;text-align:center;border-bottom:1px solid rgba(214,178,94,0.15);'>{_sel_a.split(' · ')[0]}</th>
+                                            <th style='padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#D6B25E;text-align:center;border-bottom:1px solid rgba(214,178,94,0.15);'>{_sel_b.split(' · ')[0]}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>{_tbl_rows}</tbody>
+                                </table>
+                                """, unsafe_allow_html=True)
+
+                                # Radar overlay comparison
+                                _cmp_cats  = ["Match %", "Experience", "Skill Count"]
+                                _cmp_max   = [100, max(float(_ca.get('Experience',1)), float(_cb.get('Experience',1)), 1),
+                                              max(float(_ca.get('Skills',1)), float(_cb.get('Skills',1)), 1)]
+                                _vals_a = [
+                                    float(_ca['Match %']),
+                                    float(_ca.get('Experience',0)) / _cmp_max[1] * 100,
+                                    float(_ca.get('Skills',0))     / _cmp_max[2] * 100,
+                                ]
+                                _vals_b = [
+                                    float(_cb['Match %']),
+                                    float(_cb.get('Experience',0)) / _cmp_max[1] * 100,
+                                    float(_cb.get('Skills',0))     / _cmp_max[2] * 100,
+                                ]
+                                _cats_c = _cmp_cats + [_cmp_cats[0]]
+                                _va_c   = _vals_a + [_vals_a[0]]
+                                _vb_c   = _vals_b + [_vals_b[0]]
+                                fig_cmp = go.Figure()
+                                fig_cmp.add_trace(go.Scatterpolar(
+                                    r=_va_c, theta=_cats_c, fill='toself', name=_sel_a.split(' · ')[0],
+                                    fillcolor='rgba(214,178,94,0.15)', line=dict(color='#D6B25E', width=2),
+                                    marker=dict(color='#D6B25E', size=6),
+                                ))
+                                fig_cmp.add_trace(go.Scatterpolar(
+                                    r=_vb_c, theta=_cats_c, fill='toself', name=_sel_b.split(' · ')[0],
+                                    fillcolor='rgba(107,159,212,0.12)', line=dict(color='#6B9FD4', width=2),
+                                    marker=dict(color='#6B9FD4', size=6),
+                                ))
+                                fig_cmp.update_layout(
+                                    polar=dict(
+                                        bgcolor='rgba(0,0,0,0)',
+                                        radialaxis=dict(visible=True, range=[0,100], tickfont=dict(size=8, color='#6B6560'),
+                                                        gridcolor='rgba(214,178,94,0.1)', linecolor='rgba(214,178,94,0.1)', ticksuffix='%'),
+                                        angularaxis=dict(tickfont=dict(size=10, color='#A89F92'), gridcolor='rgba(214,178,94,0.1)'),
+                                    ),
+                                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                                    font=dict(family='Inter', color='#A89F92'), height=280,
+                                    margin=dict(l=30,r=30,t=20,b=30),
+                                    legend=dict(orientation='h', y=-0.12, x=0.5, xanchor='center',
+                                                font=dict(size=10), bgcolor='rgba(0,0,0,0)'),
+                                )
+                                st.plotly_chart(fig_cmp, use_container_width=True, config={'displayModeBar': False})
+
+                                # Winner declaration
+                                _score_a = float(_ca['Match %']) + float(_ca.get('Experience',0))*2 + float(_ca.get('Skills',0))*1.5
+                                _score_b = float(_cb['Match %']) + float(_cb.get('Experience',0))*2 + float(_cb.get('Skills',0))*1.5
+                                _winner = _sel_a.split(' · ')[0] if _score_a >= _score_b else _sel_b.split(' · ')[0]
+                                st.markdown(f"""
+                                <div style='background:rgba(214,178,94,0.06);border:1px solid rgba(214,178,94,0.25);
+                                            border-radius:10px;padding:14px 18px;margin-top:12px;text-align:center;'>
+                                    <div style='font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:6px;'>Recommended Candidate</div>
+                                    <div style='font-size:18px;font-weight:700;color:#D6B25E;'>{_winner}</div>
+                                    <div style='font-size:11px;color:#6B6560;margin-top:4px;'>Based on composite match + experience + skill count</div>
+                                </div>
+                                """, unsafe_allow_html=True)
 
                         except Exception as e:
                             st.error(f"Matching error: {e}")

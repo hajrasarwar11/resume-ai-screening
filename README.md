@@ -27,17 +27,20 @@
 | Feature | Description |
 |---|---|
 | 🧠 **Resume Intelligence** | NLP pipeline: clean → tokenize → TF-IDF vectorize → classify |
-| 🔍 **Single Screener** | Paste or upload a single resume for instant role prediction with top-5 probabilities |
-| 📦 **Batch Upload** | Screen multiple PDF resumes simultaneously, ranked by confidence |
+| 🔍 **Single Screener** | Paste or upload a resume → instant role prediction, ATS score, top-5 probabilities, Candidate Fit Score radar chart, and downloadable HTML report |
+| 📦 **Batch Upload** | Screen multiple PDF resumes simultaneously, ranked by confidence score |
 | 🔄 **CV Compare** | Side-by-side comparison of two candidates with a winner declaration and skill diff |
-| 💼 **Recommendation Engine** | Match any job description against 2,400+ resumes using cosine similarity |
+| 💼 **Recommendation Engine** | Match any job description against 2,400+ resumes using cosine similarity + composite ranking |
+| 📊 **Score Breakdown Chart** | Per-candidate stacked bar showing cosine match / experience / skill count components |
+| 🗺️ **Skill Coverage Matrix** | Heatmap: which JD-required skills each top candidate has (✓) or lacks (✗) |
+| 📌 **Shortlist Manager** | Pin candidates from results, view live shortlist table, export CSV |
+| ⚖️ **Candidate Comparison** | Select 2 shortlisted candidates for side-by-side table + radar overlay + winner declaration |
 | 📊 **Candidate Analytics** | Category distribution, skill frequency, experience histograms, radar profiles |
 | 🔴 **Live Session Tracking** | Real-time dashboard of all resumes screened in the current session |
 | 🔍 **Candidate Lookup** | Search the full 2,400+ candidate pool by skill keyword or role category |
-| 🎯 **ML Live Predictor** | Run all 4 classifiers simultaneously on any text — live confidence gauges per model |
-| 📊 **Model Accuracy Breakdown** | Grouped metric comparison, accuracy ranking, hyperparameter config table |
+| 🎯 **ML Live Predictor** | Run all 5 classifiers simultaneously on any text — live confidence gauges + model agreement heatmap |
+| 📊 **ML Models Explorer** | Grouped metric comparison, accuracy ranking, hyperparameter config, feature importance |
 | 🏆 **Performance Leaderboard** | Ranked model cards with per-metric mini-bars + consensus radar chart |
-| 📌 **Shortlist & Export** | Pin candidates, add recruiter notes, export history/shortlist to CSV |
 
 ---
 
@@ -57,13 +60,14 @@
 │                            · Experience Years (regex)                       │
 │                            · Skill Count (vocab match)                      │
 │                            · Education Level (keyword)                      │
-│                         5. ML Classification                                │
+│                         5. ML Classification (5 models)                     │
 │                            · SVM  ──────── 98.75% accuracy  ──▶  Role Label │
 │                            · Logistic Regression  99.22%                    │
 │                            · XGBoost              97.35%                    │
 │                            · Random Forest        98.44%                    │
 │                         6. ATS Score (skill-keyword density)  ──▶  ATS %   │
-│                         7. Top-5 Probabilities  ──────────────▶  Ranked     │
+│                         7. Candidate Fit Score (5-dim radar)  ──▶  Profile  │
+│                         8. Top-5 Probabilities  ──────────────▶  Ranked     │
 │                                                                  Predictions │
 │                                                                             │
 │  Job Description  ──▶  1. TF-IDF Vectorisation (5K features)               │
@@ -71,6 +75,8 @@
 │                         3. Category Filter (optional)                       │
 │                         4. Composite Ranking                                │
 │                            60% Match Score + 20% Experience + 20% Skills   │
+│                         5. Score Breakdown + Skill Coverage Matrix          │
+│                         6. Shortlist Management + Candidate Comparison      │
 │                         ──────────────────────────────────────▶  Ranked     │
 │                                                                  Candidate   │
 │                                                                  Shortlist  │
@@ -84,13 +90,14 @@
 ```
 airecruit/
 │
-├── app.py                          # Main Streamlit application (3000+ lines)
+├── app.py                          # Main Streamlit application (3,700+ lines)
 │
 ├── models/                         # Serialised trained models
-│   ├── svm_pipeline.pkl            # SVM + TF-IDF pipeline (best accuracy: 98.75%)
+│   ├── svm_pipeline.pkl            # SVM + TF-IDF pipeline (98.75%)
 │   ├── logistic_regression_pipeline.pkl  # LR pipeline (99.22%)
-│   ├── xgboost_pipeline.pkl        # XGBoost pipeline
+│   ├── xgboost_pipeline.pkl        # XGBoost pipeline (97.35%)
 │   ├── xgboost_tuned_randomsearch.pkl    # XGBoost tuned via RandomizedSearchCV
+│   ├── random_forest_pipeline.pkl  # Random Forest pipeline (98.44%)
 │   ├── kmeans.pkl                  # K-Means clustering (k=10)
 │   ├── tfidf_match.pkl             # TF-IDF vectoriser for semantic matching
 │   ├── preprocessor.pkl            # ColumnTransformer for feature engineering
@@ -106,16 +113,16 @@ airecruit/
 ├── plots/                          # EDA & evaluation visualisations
 │   ├── roc_curves.png              # ROC-AUC curves for all models
 │   ├── confusion_matrices.png      # Per-model confusion matrices
-│   └── ...                        # Additional EDA plots
+│   └── ...
 │
 ├── notebooks/                      # Jupyter ML pipeline
-│   ├── 01_EDA.ipynb                # Exploratory Data Analysis
+│   ├── 01_EDA.ipynb
 │   ├── 02_Preprocessing_Feature_Engineering.ipynb
-│   ├── 03_Model_Training.ipynb     # GridSearchCV + RandomizedSearchCV
+│   ├── 03_Model_Training.ipynb
 │   └── 04_Evaluation_Recommendation_System.ipynb
 │
 ├── project_report.html             # Full academic project report
-├── requirements.txt                # Python dependencies
+├── requirements.txt
 └── .streamlit/config.toml          # Streamlit server configuration
 ```
 
@@ -134,13 +141,13 @@ All models trained on 80/20 stratified split · Cross-validated (cv=5) · Tuned 
 
 ---
 
-## 🔍 How to Search / Use the App
+## 🔍 How to Use the App
 
 ### Single Resume Screening
 1. Go to **Resume Intelligence** → **Single Screener** tab
 2. Paste resume text or upload a PDF
 3. Select a model (SVM recommended)
-4. Click **Analyse Resume** → get role prediction, ATS score, skill breakdown, top-5 predictions
+4. Click **Analyse Resume** → get role prediction, ATS score, skill breakdown, top-5 predictions, Candidate Fit Score radar, and an **Export HTML Report** button
 
 ### Batch Screening
 1. Go to **Resume Intelligence** → **Batch Upload** tab
@@ -150,15 +157,16 @@ All models trained on 80/20 stratified split · Cross-validated (cv=5) · Tuned 
 
 ### Job Description Matching
 1. Go to **Recommendation Engine**
-2. Paste a job description (or select a sample JD)
-3. Optionally filter by role category
-4. Set how many top candidates you want
-5. Click **Find Best Candidates** → ranked shortlist with match %, shared keywords, and missing skills
+2. Paste a job description (or select a sample JD from the jobs dataset)
+3. Set how many top candidates you want → click **Find Best Candidates**
+4. Results show: match expanders with Why This Match + Skill Gap + snippet
+5. Below results: **Match Score Breakdown** chart, **Skill Coverage Matrix**, **Shortlist Manager**
+6. Add 2+ candidates to shortlist → **Candidate Comparison** appears with side-by-side table + radar + winner
 
 ### Candidate Analytics & Search
 1. Go to **Candidate Analytics**
-2. Use **Category Distribution**, **Skill Analysis**, or **Radar Profile** tabs for dataset insights
-3. Use **Live Session** tab to see all resumes screened in the current session with live charts
+2. Use **Category Distribution**, **Skill Analysis**, or **Radar Profile** tabs
+3. Use **Live Session** tab to see all resumes screened in the current session
 4. Use **Candidate Lookup** tab to search the full 2,400+ dataset by skill or role category
 
 ---
@@ -168,18 +176,27 @@ All models trained on 80/20 stratified split · Cross-validated (cv=5) · Tuned 
 ```
 Resume Screened
       │
+      ├──▶  Candidate Fit Report (HTML download in Single Screener)
+      │          Includes: predicted role, confidence, ATS score, fit radar, top-5, skills
+      │
       ├──▶  Session History (Resume Intelligence → History tab)
       │          Stores: role, confidence %, ATS %, skills, top-5, model used
       │
-      ├──▶  Candidate Analytics → 🔴 Live Session tab
-      │          Shows: role distribution chart, confidence vs ATS scatter, per-candidate log
+      ├──▶  Candidate Analytics → Live Session tab
+      │          Shows: role distribution chart, confidence vs ATS scatter
       │
       ├──▶  Shortlist (📌 Add to Shortlist button)
-      │          Stores: pinned candidates with recruiter notes
-      │          Export: "Export Shortlist (CSV)" button in History tab
+      │          Export: "Export Shortlist (CSV)" button
       │
       └──▶  Recommendation Engine (🔍 Find Similar button)
-                 Sends resume text as JD to find similar candidates from the full pool
+                 Sends resume text as JD to find similar candidates
+
+Recommendation Results
+      │
+      ├──▶  Match Score Breakdown (stacked bar: cosine / experience / skills)
+      ├──▶  Skill Coverage Matrix (heatmap: JD skills × candidates)
+      ├──▶  Shortlist Manager (pin, export, clear)
+      └──▶  Candidate Comparison (table + radar + winner — appears when 2+ shortlisted)
 ```
 
 ---
@@ -208,6 +225,15 @@ Composite Score = 0.60 × CosineSimilarity(JD_tfidf, Resume_tfidf)
                + 0.20 × normalize(Experience_Years)
                + 0.20 × normalize(Skill_Count)
 ```
+
+### Candidate Fit Score (5 Dimensions)
+| Dimension | Calculation |
+|---|---|
+| **Confidence** | Model's top-class probability (%) |
+| **ATS Readiness** | Structural keyword density score |
+| **Skill Coverage** | Matched skills / 12 × 100, capped at 100 |
+| **Resume Depth** | Word count / 350 × 100, capped at 100 |
+| **Role Certainty** | Gap between top-1 and top-2 prediction probabilities |
 
 ---
 
@@ -258,8 +284,6 @@ App will be available at `http://localhost:8501`
 ---
 
 ## 🔬 Notebook Pipeline
-
-Run notebooks in order to reproduce the full ML pipeline:
 
 | Notebook | Purpose |
 |---|---|
