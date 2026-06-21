@@ -1651,21 +1651,22 @@ elif page == "🧠 Resume Intelligence":
             </div>
             """, unsafe_allow_html=True)
         else:
-            # ── header row ──
-            h_col_hdr, h_col_exp, h_col_pin, h_col_btn = st.columns([4, 1.3, 1.3, 1.3])
-            with h_col_hdr:
-                n_single  = sum(1 for h in history if h.get("source","single") == "single")
-                n_batch   = sum(1 for h in history if h.get("source","single") == "batch")
-                n_compare = sum(1 for h in history if h.get("source","single") == "compare")
-                n_pinned  = len(st.session_state.shortlist)
-                st.markdown(
-                    f"<div style='font-size:12px;color:#8C7A5B;padding-top:8px;'>"
-                    f"<span style='color:#D6B25E;font-weight:600;'>{len(history)}</span> total &nbsp;·&nbsp; "
-                    f"🔍 {n_single} &nbsp;·&nbsp; 📦 {n_batch} &nbsp;·&nbsp; 🔄 {n_compare}"
-                    + (f" &nbsp;·&nbsp; <span style='color:#D6B25E;'>📌 {n_pinned} shortlisted</span>" if n_pinned else "")
-                    + "</div>",
-                    unsafe_allow_html=True
-                )
+            # ── header row: stats ──
+            n_single  = sum(1 for h in history if h.get("source","single") == "single")
+            n_batch   = sum(1 for h in history if h.get("source","single") == "batch")
+            n_compare = sum(1 for h in history if h.get("source","single") == "compare")
+            n_pinned  = len(st.session_state.shortlist)
+            st.markdown(
+                f"<div style='font-size:12px;color:#8C7A5B;padding-bottom:10px;'>"
+                f"<span style='color:#D6B25E;font-weight:600;'>{len(history)}</span> total &nbsp;·&nbsp; "
+                f"🔍 {n_single} &nbsp;·&nbsp; 📦 {n_batch} &nbsp;·&nbsp; 🔄 {n_compare}"
+                + (f" &nbsp;·&nbsp; <span style='color:#D6B25E;'>📌 {n_pinned} shortlisted</span>" if n_pinned else "")
+                + "</div>",
+                unsafe_allow_html=True
+            )
+
+            # ── header row: buttons on their own separate row ──
+            h_col_exp, h_col_pin, h_col_btn = st.columns(3)
             with h_col_exp:
                 export_rows = []
                 for h in history:
