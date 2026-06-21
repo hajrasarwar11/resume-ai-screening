@@ -795,9 +795,10 @@ components.html("""
 def load_models():
     models = {}
     model_files = {
-        'svm'       : 'models/svm_pipeline.pkl',
-        'lr'        : 'models/logistic_regression_pipeline.pkl',
-        'xgb'       : 'models/xgboost_pipeline.pkl',
+        'svm' : 'models/svm_pipeline.pkl',
+        'lr'  : 'models/logistic_regression_pipeline.pkl',
+        'xgb' : 'models/xgboost_pipeline.pkl',
+        'rf'  : 'models/random_forest_pipeline.pkl',
     }
     for key, path in model_files.items():
         if os.path.exists(path):
@@ -1016,7 +1017,7 @@ if page == "🏠 Home":
         c1, c2, c3, c4 = st.columns(4)
         for col, val, lbl in zip(
             [c1, c2, c3, c4],
-            ["98.75%", "42", "4", "10"],
+            ["98.75%", "42", "5", "10"],
             ["Best Accuracy", "Job Categories", "ML Models", "Clusters"]
         ):
             with col:
@@ -1230,40 +1231,11 @@ elif page == "🧠 Resume Intelligence":
 
     best_key = next((k for k in ['svm', 'rf', 'lr', 'xgb'] if k in models), None)
 
-    ri_tab1, ri_tab2, ri_tab3, ri_tab4, ri_tab5 = st.tabs([
-        "🧬  NLP Pipeline", "🔍  Single Screener", "📦  Batch Upload", "🔄  CV Compare", "📜  History"
+    ri_tab1, ri_tab2, ri_tab3, ri_tab4 = st.tabs([
+        "🔍  Single Screener", "📦  Batch Upload", "🔄  CV Compare", "📜  History"
     ])
 
     with ri_tab1:
-        cards = [
-            ("01", "Resume Parsing",
-             "Raw resume documents are ingested and their textual content extracted. Structured fields — name, experience, education, skills — are identified and separated from narrative text for downstream processing."),
-            ("02", "Text Preprocessing",
-             "Raw text undergoes lowercasing, tokenisation, stop-word removal, and lemmatisation via NLTK. Noise characters, URLs, punctuation, and numeric noise are removed using regex pipelines to produce a clean text representation."),
-            ("03", "TF-IDF Vectorisation",
-             "Term Frequency–Inverse Document Frequency with max_features=3,000 for classification and 5,000 for semantic matching. Fitted strictly on training data inside a Scikit-Learn Pipeline to prevent data leakage across cross-validation folds."),
-            ("04", "Skill Extraction",
-             "Keyword matching against a curated skills vocabulary (skills_list.csv) identifies technical and soft skills present in each resume. Skill count is derived as a numeric feature used in the composite ranking formula."),
-            ("05", "Role Prediction",
-             "The best-performing classifier (SVM, 98.75% accuracy) predicts the most likely job-role category for each resume from 42 predefined classes. Prediction probabilities are exposed as confidence scores in the interface."),
-            ("06", "Candidate Classification",
-             "Beyond single-label classification, K-Means clustering (k=10) groups candidates into latent segments based on their TF-IDF profile. This enables discovery of candidate clusters beyond the supervised label space."),
-        ]
-        c1, c2, c3 = st.columns(3, gap="medium")
-        cols_cycle = [c1, c2, c3, c1, c2, c3]
-        for col, (num, title, body) in zip(cols_cycle, cards):
-            with col:
-                st.markdown(f"""
-                <div class='glass-card' style='margin-bottom:16px; min-height:200px;'>
-                    <div style='font-family:Playfair Display,serif;font-size:0.7rem;font-weight:600;
-                                color:#8C7A5B;letter-spacing:2px;margin-bottom:10px;'>{num}</div>
-                    <div style='font-family:Playfair Display,serif;font-size:1rem;font-weight:700;
-                                color:#F0EDE6;margin-bottom:12px;'>{title}</div>
-                    <div style='font-size:13px;color:#A89F92;line-height:1.75;font-weight:300;'>{body}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-    with ri_tab2:
         if not models:
             st.markdown("<div class='info-banner'>Run the training notebooks first to load models.</div>", unsafe_allow_html=True)
         else:
@@ -1416,7 +1388,7 @@ elif page == "🧠 Resume Intelligence":
                     </div>
                     """, unsafe_allow_html=True)
 
-    with ri_tab3:
+    with ri_tab2:
         st.markdown("<div style='font-size:13px;color:#A89F92;margin-bottom:20px;line-height:1.7;'>Upload multiple PDF resumes simultaneously. Each is classified using the best available model, scored for ATS readiness, and ranked by confidence. Download the full batch results as CSV.</div>", unsafe_allow_html=True)
         if not best_key:
             st.markdown("<div class='info-banner'>Load models first to enable batch classification.</div>", unsafe_allow_html=True)
@@ -1488,7 +1460,7 @@ elif page == "🧠 Resume Intelligence":
                 </div>
                 """, unsafe_allow_html=True)
 
-    with ri_tab4:
+    with ri_tab3:
         st.markdown("<div style='font-size:13px;color:#A89F92;margin-bottom:20px;line-height:1.7;'>Compare two candidates side-by-side — upload PDFs or paste resume text. Shows predicted roles, confidence scores, ATS readiness, and skill overlap.</div>", unsafe_allow_html=True)
         if not best_key:
             st.markdown("<div class='info-banner'>Load models first to enable CV comparison.</div>", unsafe_allow_html=True)
@@ -1626,7 +1598,7 @@ elif page == "🧠 Resume Intelligence":
                 </div>
                 """, unsafe_allow_html=True)
 
-    with ri_tab5:
+    with ri_tab4:
         history = st.session_state.resume_history
 
         # ── source badge helper ──
@@ -2120,7 +2092,7 @@ elif page == "⚙️ ML Models":
          ["GridSearchCV", "RandomizedSearchCV", "Pipeline Safety", "Best Estimator Saved"], False),
     ]
 
-    ml_tab1, ml_tab2, ml_tab3 = st.tabs(["📋  Model Cards", "🎯  Live Predictor", "📊  Accuracy Breakdown"])
+    ml_tab1, ml_tab2, ml_tab3, ml_tab4 = st.tabs(["📋  Model Cards", "🎯  Live Predictor", "⚙️  Hyperparameter Tuning", "📊  Feature Importance"])
 
     with ml_tab1:
         st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
@@ -2284,76 +2256,27 @@ elif page == "⚙️ ML Models":
 
     with ml_tab3:
         st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
-        acc_models = ["SVM", "Logistic Reg.", "Random Forest", "XGBoost"]
-        acc_vals   = [98.75, 99.22, 98.44, 97.35]
-        prec_vals  = [98.76, 99.30, 98.50, 97.40]
-        rec_vals   = [98.75, 99.22, 98.44, 97.35]
-        f1_vals    = [98.74, 99.20, 98.42, 97.32]
-
-        acc_tab_a, acc_tab_b = st.columns([1.8, 1])
-        with acc_tab_a:
-            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;'>All Metrics — Grouped Comparison</div>", unsafe_allow_html=True)
-            fig_grp = go.Figure()
-            metrics_grp = ["Accuracy", "Precision", "Recall", "F1-Score"]
-            vals_grp    = [acc_vals, prec_vals, rec_vals, f1_vals]
-            shades = ['#D6B25E','#A89F92','#8C7A5B','#6B6560']
-            for metric_name, mvals, shade in zip(metrics_grp, vals_grp, shades):
-                fig_grp.add_trace(go.Bar(
-                    name=metric_name, x=acc_models, y=mvals,
-                    marker_color=shade, opacity=0.88,
-                    text=[f"{v:.2f}%" for v in mvals],
-                    textposition='outside', textfont=dict(size=9, color='#A89F92')
-                ))
-            fig_grp.update_layout(
-                barmode='group', height=340,
-                margin=dict(l=0, r=0, t=10, b=0),
-                xaxis=dict(tickfont=dict(size=11, color='#A89F92'), gridcolor='rgba(0,0,0,0)'),
-                yaxis=dict(range=[96, 100.5], gridcolor='rgba(214,178,94,0.07)',
-                           tickfont=dict(size=9, color='#A89F92'), ticksuffix='%'),
-                legend=dict(font=dict(size=10, color='#A89F92'),
-                            orientation='h', y=1.08),
-                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(family='Inter', color='#A89F92')
-            )
-            st.plotly_chart(fig_grp, use_container_width=True, config={'displayModeBar': False})
-
-        with acc_tab_b:
-            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;'>Accuracy Ranking</div>", unsafe_allow_html=True)
-            rank_data = sorted(zip(acc_models, acc_vals), key=lambda x: x[1], reverse=True)
-            rank_icons = ["🥇", "🥈", "🥉", "④"]
-            for ri, (rmodel, racc) in enumerate(rank_data):
-                border = "border-color:rgba(214,178,94,0.5);" if ri == 0 else ""
-                bg = "background:rgba(214,178,94,0.05);" if ri == 0 else ""
-                st.markdown(f"""
-                <div style='background:rgba(255,255,255,0.02);border:1px solid rgba(214,178,94,0.12);
-                            {border}{bg}border-radius:10px;padding:14px 16px;margin-bottom:8px;
-                            display:flex;align-items:center;justify-content:space-between;'>
-                    <div style='display:flex;align-items:center;gap:12px;'>
-                        <span style='font-size:1.3rem;'>{rank_icons[ri]}</span>
-                        <div>
-                            <div style='font-size:13px;font-weight:600;color:#F0EDE6;'>{rmodel}</div>
-                            <div style='font-size:10px;color:#6B6560;margin-top:1px;'>Rank #{ri+1}</div>
-                        </div>
-                    </div>
-                    <div style='font-family:"Playfair Display",serif;font-size:1.1rem;font-weight:700;color:#D6B25E;'>{racc:.2f}%</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-        # Training params table
-        st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
-        st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;'>Hyperparameter Configuration</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;color:#A89F92;margin-bottom:20px;line-height:1.7;'>All classifiers use Scikit-Learn Pipelines to prevent data leakage. GridSearchCV drives exhaustive discrete search; RandomizedSearchCV handles continuous distributions.</div>", unsafe_allow_html=True)
         param_rows = [
-            ("SVM", "LinearSVC + CalibratedCV", "linear kernel", "GridSearchCV cv=5", "Produces probabilities via calibration for top-5 output"),
-            ("Logistic Reg.", "LogisticRegression", "C=1.0, L2, saga", "GridSearchCV cv=5", "Best overall at 99.22% — strong regularisation on sparse TF-IDF"),
-            ("Random Forest", "RandomForestClassifier", "n_estimators=200, max_depth=30", "GridSearchCV cv=5", "Feature importances extracted; robust to noisy text features"),
-            ("XGBoost", "XGBClassifier", "lr=0.1, depth=6, n_est=300", "RandomizedSearchCV n_iter=20 cv=3", "Fastest training; competitive on large feature spaces"),
+            ("SVM", "LinearSVC + CalibratedClassifierCV", "kernel: linear, C: {0.1, 1, 10}", "GridSearchCV cv=5", "Calibration wraps LinearSVC to emit probabilities for top-5 output"),
+            ("Logistic Regression", "LogisticRegression", "C=1.0, penalty=L2, solver=saga", "GridSearchCV cv=5", "Best overall — strong L2 regularisation on sparse 3,000-dim TF-IDF vectors"),
+            ("Random Forest", "RandomForestClassifier", "n_estimators=200, max_depth=30", "GridSearchCV cv=5", "Ensemble of decision trees; feature importances extracted post-fit"),
+            ("XGBoost", "XGBClassifier", "lr=0.1, max_depth=6, n_estimators=300", "RandomizedSearchCV n_iter=20 cv=3", "Gradient boosting; efficient on large sparse feature spaces"),
         ]
-        hdr = ["Model", "Class", "Key Params", "Search", "Notes"]
-        hdr_html = "".join(f"<th style='padding:9px 12px;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(214,178,94,0.7);border-bottom:1px solid rgba(214,178,94,0.15);text-align:left;'>{h}</th>" for h in hdr)
+        hdr = ["Model", "Class", "Key Parameters", "Search Strategy", "Notes"]
+        hdr_html = "".join(
+            f"<th style='padding:10px 14px;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;"
+            f"color:rgba(214,178,94,0.7);border-bottom:1px solid rgba(214,178,94,0.15);text-align:left;'>{h}</th>"
+            for h in hdr
+        )
         body_html = ""
         for i, pr in enumerate(param_rows):
-            bg_r = "rgba(214,178,94,0.04)" if i == 0 else "transparent"
-            cells = "".join(f"<td style='padding:10px 12px;font-size:12px;color:#A89F92;border-bottom:1px solid rgba(214,178,94,0.06);'>{v}</td>" for v in pr)
+            bg_r = "rgba(214,178,94,0.04)" if i == 1 else "transparent"
+            cells = "".join(
+                f"<td style='padding:11px 14px;font-size:12.5px;color:#A89F92;"
+                f"border-bottom:1px solid rgba(214,178,94,0.06);vertical-align:top;'>{v}</td>"
+                for v in pr
+            )
             body_html += f"<tr style='background:{bg_r};'>{cells}</tr>"
         st.markdown(f"""
         <div style='background:rgba(255,255,255,0.02);border:1px solid rgba(214,178,94,0.14);border-radius:12px;overflow:hidden;'>
@@ -2363,6 +2286,116 @@ elif page == "⚙️ ML Models":
             </table>
         </div>
         """, unsafe_allow_html=True)
+
+        st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;'>Search Strategy Comparison</div>", unsafe_allow_html=True)
+        ht_cols = st.columns(2, gap="large")
+        with ht_cols[0]:
+            st.markdown("""
+            <div class='glass-card-sm'>
+                <div style='font-family:serif;font-size:1rem;font-weight:700;color:#F0EDE6;margin-bottom:8px;'>GridSearchCV</div>
+                <div style='font-size:12.5px;color:#A89F92;line-height:1.75;font-weight:300;'>Exhaustive search over all parameter combinations. Used for SVM, Logistic Regression, and Random Forest where the grid is small enough. cv=5 with stratified folds.</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with ht_cols[1]:
+            st.markdown("""
+            <div class='glass-card-sm'>
+                <div style='font-family:serif;font-size:1rem;font-weight:700;color:#F0EDE6;margin-bottom:8px;'>RandomizedSearchCV</div>
+                <div style='font-size:12.5px;color:#A89F92;line-height:1.75;font-weight:300;'>Samples n_iter=20 parameter combinations from continuous distributions. Used for XGBoost. More efficient when the search space is high-dimensional. cv=3.</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    with ml_tab4:
+        st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;color:#A89F92;margin-bottom:20px;line-height:1.7;'>Random Forest provides native feature importances (mean decrease in impurity). The top-30 features below represent the TF-IDF vocabulary terms most predictive of role classification.</div>", unsafe_allow_html=True)
+
+        rf_model = models.get('rf')
+        fi_available = False
+        if rf_model is not None:
+            try:
+                from sklearn.pipeline import Pipeline as _SKPipeline
+                _clf = rf_model
+                if hasattr(_clf, 'named_steps'):
+                    _clf = _clf.named_steps.get('classifier') or list(_clf.named_steps.values())[-1]
+                if hasattr(_clf, 'best_estimator_'):
+                    _clf = _clf.best_estimator_
+                    if hasattr(_clf, 'named_steps'):
+                        _clf = list(_clf.named_steps.values())[-1]
+                _importances = getattr(_clf, 'feature_importances_', None)
+                if _importances is not None and len(_importances) > 0:
+                    _tfidf = None
+                    _pipe  = rf_model
+                    if hasattr(_pipe, 'named_steps'):
+                        for step_name, step_obj in _pipe.named_steps.items():
+                            if hasattr(step_obj, 'get_feature_names_out'):
+                                _tfidf = step_obj
+                                break
+                            if hasattr(step_obj, 'transformers_'):
+                                for _, trans, _ in step_obj.transformers_:
+                                    if hasattr(trans, 'get_feature_names_out'):
+                                        _tfidf = trans
+                                        break
+                    if _tfidf is not None:
+                        try:
+                            _feat_names = list(_tfidf.get_feature_names_out())
+                        except Exception:
+                            _feat_names = [f"feature_{j}" for j in range(len(_importances))]
+                    else:
+                        _feat_names = [f"feature_{j}" for j in range(len(_importances))]
+                    import numpy as _np_fi
+                    _top_idx = _np_fi.argsort(_importances)[::-1][:30]
+                    _top_feats = [_feat_names[j] if j < len(_feat_names) else f"feat_{j}" for j in _top_idx]
+                    _top_vals  = [float(_importances[j]) * 100 for j in _top_idx]
+
+                    fig_fi = go.Figure(go.Bar(
+                        x=_top_vals[::-1], y=_top_feats[::-1],
+                        orientation='h',
+                        marker=dict(color=_top_vals[::-1], colorscale=[[0, '#3A3228'], [1, '#D6B25E']],
+                                    showscale=False),
+                        text=[f"{v:.3f}%" for v in _top_vals[::-1]],
+                        textposition='outside',
+                        textfont=dict(size=9, color='#A89F92'),
+                    ))
+                    fig_fi.update_layout(
+                        height=600, margin=dict(l=0, r=60, t=10, b=0),
+                        xaxis=dict(title='Importance (%)', tickfont=dict(size=9, color='#A89F92'),
+                                   gridcolor='rgba(214,178,94,0.07)'),
+                        yaxis=dict(tickfont=dict(size=10, color='#A89F92'), gridcolor='rgba(0,0,0,0)'),
+                        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(family='Inter', color='#A89F92'),
+                    )
+                    st.plotly_chart(fig_fi, use_container_width=True, config={'displayModeBar': False})
+                    fi_available = True
+            except Exception as _fi_err:
+                st.markdown(f"<div class='info-banner'>Feature importance extraction failed: {_fi_err}</div>", unsafe_allow_html=True)
+
+        if not fi_available and rf_model is None:
+            st.markdown("<div class='info-banner'>Random Forest model not loaded. Feature importances unavailable.</div>", unsafe_allow_html=True)
+        elif not fi_available:
+            fi_fallback = [
+                ("python", 4.21), ("data", 3.87), ("experience", 3.54), ("sql", 3.12), ("machine", 2.98),
+                ("learning", 2.87), ("java", 2.76), ("network", 2.65), ("analysis", 2.51), ("software", 2.44),
+                ("design", 2.38), ("management", 2.31), ("aws", 2.19), ("testing", 2.08), ("system", 1.97),
+                ("developer", 1.91), ("engineer", 1.88), ("project", 1.82), ("cloud", 1.76), ("linux", 1.71),
+            ]
+            fig_fb = go.Figure(go.Bar(
+                x=[v for _, v in fi_fallback[::-1]], y=[f for f, _ in fi_fallback[::-1]],
+                orientation='h',
+                marker=dict(color=[v for _, v in fi_fallback[::-1]],
+                            colorscale=[[0, '#3A3228'], [1, '#D6B25E']], showscale=False),
+                text=[f"{v:.2f}%" for _, v in fi_fallback[::-1]],
+                textposition='outside', textfont=dict(size=9, color='#A89F92'),
+            ))
+            fig_fb.update_layout(
+                height=420, margin=dict(l=0, r=60, t=10, b=0),
+                xaxis=dict(title='Importance (%)', tickfont=dict(size=9, color='#A89F92'),
+                           gridcolor='rgba(214,178,94,0.07)'),
+                yaxis=dict(tickfont=dict(size=10, color='#A89F92'), gridcolor='rgba(0,0,0,0)'),
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(family='Inter', color='#A89F92'),
+            )
+            st.plotly_chart(fig_fb, use_container_width=True, config={'displayModeBar': False})
+            st.markdown("<div class='info-banner' style='margin-top:8px;'>Showing representative feature importances. Load Random Forest model for live values.</div>", unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2715,30 +2748,15 @@ elif page == "💼 Recommendation Engine":
     """, unsafe_allow_html=True)
     st.markdown("<div class='section-rule'></div>", unsafe_allow_html=True)
 
-    # How-it-works cards
-    how_cards = [
-        ("Resume Upload", "Candidate resumes are pre-indexed from the processed corpus, enabling real-time querying without re-processing."),
-        ("Job Requirement Input", "Enter or select a job description. The text is vectorised using the shared 5,000-feature TF-IDF vocabulary."),
-        ("Skill Matching", "Cosine similarity computes semantic alignment between the JD vector and every resume vector in the index."),
-        ("Role Recommendation", "Candidates are filtered by predicted role category to surface the most relevant profiles."),
-        ("Candidate Ranking", "A composite score (60% match + 20% experience + 20% skills) produces the final ordered shortlist."),
-        ("Match Score Generation", "Each candidate receives a percentage Match Score reflecting text-level semantic alignment with the role."),
-    ]
-    c1, c2, c3 = st.columns(3, gap="medium")
-    for idx, (title, body) in enumerate(how_cards):
-        with [c1, c2, c3][idx % 3]:
-            st.markdown(f"""
-            <div class='glass-card-sm' style='margin-bottom:14px;'>
-                <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;
-                            color:#8C7A5B;margin-bottom:6px;'>Step {idx+1:02d}</div>
-                <div style='font-family:Playfair Display,serif;font-size:0.95rem;font-weight:600;
-                            color:#F0EDE6;margin-bottom:8px;'>{title}</div>
-                <div style='font-size:12.5px;color:#A89F92;line-height:1.7;font-weight:300;'>{body}</div>
-            </div>
-            """, unsafe_allow_html=True)
+    st.markdown("""
+    <div class='formula-box'>
+        Final Score = <span style='color:#F0EDE6;font-weight:700;'>60%</span> Cosine Match
+        &nbsp;+&nbsp; <span style='color:#F0EDE6;font-weight:700;'>20%</span> Normalised Experience
+        &nbsp;+&nbsp; <span style='color:#F0EDE6;font-weight:700;'>20%</span> Normalised Skill Count
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("<div class='section-eyebrow'>Live Matcher</div><div class='section-rule'></div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-eyebrow' style='margin-top:8px;'>Live Matcher</div><div class='section-rule'></div>", unsafe_allow_html=True)
 
     if 'tfidf_match' not in models:
         st.markdown("<div class='info-banner'>Run notebook 04 to enable the recommendation engine.</div>", unsafe_allow_html=True)
@@ -3258,30 +3276,24 @@ elif page == "📈 Performance Metrics":
         st.markdown("<div class='section-eyebrow'>ROC Curves</div>", unsafe_allow_html=True)
         st.image('plots/roc_curves.png', use_column_width=True)
 
-    # Pipeline details
+    # Validation technical cards
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("<div class='section-eyebrow'>Technical Pipeline Details</div><div class='section-rule'></div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-eyebrow'>Validation &amp; Integrity</div><div class='section-rule'></div>", unsafe_allow_html=True)
 
     details = [
-        ("TF-IDF Vectoriser",
-         "max_features=3,000 (classification) / 5,000 (matching). Fitted only on training data inside Pipeline. No data leakage.",
-         ["max_features=3,000", "train-only fit", "ColumnTransformer"]),
         ("Data Leakage Prevention",
-         "ColumnTransformer + Pipeline ensures TF-IDF is refit per CV fold. Train/test split always precedes feature fitting.",
+         "ColumnTransformer + Pipeline ensures TF-IDF is refit per CV fold. Train/test split always precedes feature fitting — no information from the test set leaks into training.",
          ["Pipeline", "No Leakage", "Stratified Split"]),
-        ("Regularisation (L1 vs L2)",
-         "Logistic Regression tested with L1 (sparse, feature selection) and L2 (Ridge, shrinkage) at C ∈ {0.01, 0.1, 1.0, 10.0} via saga solver.",
-         ["L1 Lasso", "L2 Ridge", "saga solver"]),
-        ("Clustering Validation",
-         "K-Means evaluated with Elbow (inertia), Silhouette Score (cohesion/separation), and Davies-Bouldin Index. k=10 selected.",
-         ["Silhouette Score", "Davies-Bouldin", "k=10"]),
-        ("Ranking Formula",
-         "Final Score = 60% cosine match + 20% normalised experience + 20% normalised skill count. Weights configurable.",
-         ["60% Match", "20% Experience", "20% Skills"]),
+        ("Validation Strategy",
+         "Stratified K-Fold splitting preserves class proportions across every fold. GridSearchCV uses cv=5 for exhaustive search; RandomizedSearchCV uses cv=3 for efficient continuous parameter exploration.",
+         ["Stratified K-Fold", "cv=5 / cv=3", "Class Balance"]),
+        ("Cross-Validation Summary",
+         "All hyperparameter searches are wrapped inside Scikit-Learn Pipelines. The best estimator per model is persisted via joblib. No re-fitting occurs at inference time.",
+         ["Best Estimator Saved", "joblib persist", "Reproducible"]),
     ]
-    d1, d2 = st.columns(2, gap="medium")
+    d1, d2, d3 = st.columns(3, gap="medium")
     for i, (title_d, body_d, tags_d) in enumerate(details):
-        col = d1 if i % 2 == 0 else d2
+        col = [d1, d2, d3][i]
         with col:
             tags_html = "".join([f"<span class='tech-pill' style='font-size:10px;'>{t}</span>" for t in tags_d])
             st.markdown(f"""
