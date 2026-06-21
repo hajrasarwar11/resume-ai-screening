@@ -4574,6 +4574,86 @@ elif page == "👥 About":
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<div class='section-eyebrow'>Future Enhancements</div><div class='section-rule'></div>", unsafe_allow_html=True)
+
+    future_items = [
+        {
+            "icon": "🗄️",
+            "title": "Persistent Cloud Database",
+            "desc": "Integrate Supabase (PostgreSQL) to permanently save Recruiter Workspace data — candidates, pipeline stages, interview notes — across all sessions and users. Eliminates session-state limitations.",
+            "tag": "Infrastructure"
+        },
+        {
+            "icon": "📧",
+            "title": "Automated Shortlisting Emails",
+            "desc": "When a candidate is moved to 'Offer' stage, auto-generate a personalised shortlisting email using their CV details and role. Recruiter previews and approves before sending via Gmail SMTP in real time.",
+            "tag": "Automation"
+        },
+        {
+            "icon": "🧠",
+            "title": "GPT-Powered Resume Feedback",
+            "desc": "Use an LLM (GPT-4 / Gemini) to generate detailed, personalised resume feedback — highlighting weaknesses, missing keywords, ATS improvements, and role-specific suggestions per candidate.",
+            "tag": "AI / LLM"
+        },
+        {
+            "icon": "🌐",
+            "title": "LinkedIn Profile Scraper",
+            "desc": "Allow recruiters to paste a LinkedIn URL and auto-extract candidate details (skills, experience, education) directly into the Resume Screener — no manual CV upload needed.",
+            "tag": "Integration"
+        },
+        {
+            "icon": "🎥",
+            "title": "Video Interview Analyser",
+            "desc": "Process recorded video interviews using speech-to-text (Whisper) and sentiment analysis to score candidate communication, confidence, and keyword relevance against the job description.",
+            "tag": "AI / NLP"
+        },
+        {
+            "icon": "⚖️",
+            "title": "Bias & Fairness Auditor",
+            "desc": "Detect demographic bias in shortlisting decisions — analyse if gender, university name, or location patterns unfairly affect model predictions. Output a fairness report per hiring cycle.",
+            "tag": "Ethics / ML"
+        },
+        {
+            "icon": "📱",
+            "title": "Mobile-Responsive Candidate Portal",
+            "desc": "A separate candidate-facing portal where applicants can submit their resume, track their application status in real time, and receive automated updates — built for mobile.",
+            "tag": "UX / Product"
+        },
+        {
+            "icon": "🔁",
+            "title": "Active Learning & Model Retraining",
+            "desc": "Collect recruiter feedback (accept / reject decisions) and use it to continuously retrain and improve the classification models — making AIRECRUIT smarter with every hiring cycle.",
+            "tag": "MLOps"
+        },
+    ]
+
+    fe_cols = st.columns(2, gap="large")
+    for i, item in enumerate(future_items):
+        tag_color = {
+            "Infrastructure": "#8C7A5B", "Automation": "#D6B25E",
+            "AI / LLM": "#A89F92", "Integration": "#6B8C7A",
+            "AI / NLP": "#8C7A5B", "Ethics / ML": "#E57373",
+            "UX / Product": "#A89F92", "MLOps": "#D6B25E"
+        }.get(item["tag"], "#6B6560")
+
+        with fe_cols[i % 2]:
+            st.markdown(
+                f"<div style='border:1px solid rgba(214,178,94,0.12);background:rgba(255,255,255,0.018);"
+                f"border-radius:14px;padding:20px 22px;margin-bottom:16px;'>"
+                f"<div style='display:flex;align-items:flex-start;gap:14px;'>"
+                f"<span style='font-size:1.6rem;line-height:1;margin-top:2px;'>{item['icon']}</span>"
+                f"<div style='flex:1;'>"
+                f"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;'>"
+                f"<div style='font-family:Playfair Display,serif;font-size:0.95rem;font-weight:700;color:#F0EDE6;'>{item['title']}</div>"
+                f"<span style='font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;"
+                f"padding:2px 8px;border-radius:20px;border:1px solid {tag_color};color:{tag_color};white-space:nowrap;margin-left:8px;'>{item['tag']}</span>"
+                f"</div>"
+                f"<div style='font-size:12.5px;color:#A89F92;line-height:1.7;'>{item['desc']}</div>"
+                f"</div></div></div>",
+                unsafe_allow_html=True
+            )
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # FOOTER
