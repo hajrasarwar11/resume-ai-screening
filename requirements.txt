@@ -47,3 +47,15 @@ scipy
 seaborn
 streamlit
 xgboost
+joblib
+matplotlib
+nltk
+numpy
+pandas
+pdfplumber
+plotly
+scikit-learn
+scipy
+seaborn
+streamlit
+xgboost
