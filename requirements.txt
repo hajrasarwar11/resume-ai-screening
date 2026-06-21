@@ -35,3 +35,15 @@ scikit-learn
 scipy
 seaborn
 xgboost
+joblib
+matplotlib
+nltk
+numpy
+pandas
+pdfplumber
+plotly
+scikit-learn
+scipy
+seaborn
+streamlit
+xgboost
