@@ -46,6 +46,7 @@ html, body, [class*="css"] {
     color: #F0EDE6 !important;
 }
 #MainMenu, footer, header { visibility: hidden; }
+[data-testid="collapsedControl"] { visibility: visible !important; display: flex !important; }
 .block-container {
     padding: 2rem 2.5rem !important;
     max-width: 1400px !important;
@@ -2250,6 +2251,63 @@ elif page == "⚙️ ML Models":
                     title=dict(text="Top-3 Predictions — All Models", font=dict(size=11, color='#8C7A5B'), x=0.01)
                 )
                 st.plotly_chart(fig_cmp, use_container_width=True, config={'displayModeBar': False})
+
+                # ── Model Agreement Heatmap ──
+                st.markdown("<div style='margin-top:24px;'></div>", unsafe_allow_html=True)
+                st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;'>Model Agreement Heatmap</div>", unsafe_allow_html=True)
+                st.markdown("<div style='font-size:12px;color:#6B6560;margin-bottom:14px;'>Confidence each model assigns to every top-predicted role — highlights where models converge or diverge.</div>", unsafe_allow_html=True)
+
+                all_roles_hm = sorted(set(
+                    role for r in result_cards for role, _ in r.get("top3", [])
+                ))
+                model_names_hm = [r["model"] for r in result_cards]
+                hm_z = []
+                for r in result_cards:
+                    top3_dict = {role: pct for role, pct in r.get("top3", [])}
+                    hm_z.append([round(top3_dict.get(role, 0.0), 1) for role in all_roles_hm])
+
+                fig_hm = go.Figure(go.Heatmap(
+                    z=hm_z,
+                    x=all_roles_hm,
+                    y=model_names_hm,
+                    colorscale=[
+                        [0.0,  'rgba(11,13,16,1)'],
+                        [0.25, 'rgba(44,36,22,1)'],
+                        [0.6,  'rgba(140,122,91,1)'],
+                        [1.0,  'rgba(214,178,94,1)'],
+                    ],
+                    text=[[f"{v:.1f}%" if v > 0 else "" for v in row] for row in hm_z],
+                    texttemplate="%{text}",
+                    textfont=dict(size=10, color='#F0EDE6'),
+                    hovertemplate="<b>%{y}</b> → %{x}<br>Confidence: %{z:.1f}%<extra></extra>",
+                    showscale=True,
+                    colorbar=dict(
+                        thickness=10, len=0.8,
+                        tickfont=dict(size=9, color='#A89F92'),
+                        ticksuffix='%',
+                        outlinewidth=0,
+                        bgcolor='rgba(0,0,0,0)',
+                    ),
+                    zmin=0, zmax=100,
+                ))
+                fig_hm.update_layout(
+                    height=180,
+                    margin=dict(l=0, r=60, t=10, b=0),
+                    xaxis=dict(
+                        tickfont=dict(size=10, color='#A89F92'),
+                        gridcolor='rgba(0,0,0,0)',
+                        side='bottom',
+                    ),
+                    yaxis=dict(
+                        tickfont=dict(size=10, color='#A89F92'),
+                        gridcolor='rgba(0,0,0,0)',
+                        autorange='reversed',
+                    ),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(family='Inter', color='#A89F92'),
+                )
+                st.plotly_chart(fig_hm, use_container_width=True, config={'displayModeBar': False})
 
         elif lc_btn:
             st.warning("Paste a resume first.")
