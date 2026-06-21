@@ -914,16 +914,14 @@ with st.sidebar:
         "📈 Performance Metrics",
         "👥 About"
     ]
-    if "page_idx" not in st.session_state:
-        st.session_state.page_idx = 0
+    if "nav_radio" not in st.session_state:
+        st.session_state.nav_radio = PAGE_OPTIONS[0]
     page = st.radio(
         label="",
         options=PAGE_OPTIONS,
-        index=st.session_state.page_idx,
         key="nav_radio",
         label_visibility="collapsed"
     )
-    st.session_state.page_idx = PAGE_OPTIONS.index(page)
 
     st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
 
@@ -1583,30 +1581,39 @@ elif page == "⚙️ ML Models":
     ml_tab1, ml_tab2 = st.tabs(["📋  Model Cards", "⚡  Live Comparison"])
 
     with ml_tab1:
-        cards_html = ""
-        for idx, (title, lbl, body, tags, is_best) in enumerate(model_data):
-            tags_html = "".join([
-                f"<span style='display:inline-block;background:rgba(214,178,94,0.12);border:1px solid rgba(214,178,94,0.3);"
-                f"border-radius:20px;padding:3px 10px;font-size:10px;color:#D6B25E;margin:3px 3px 0 0;'>{t}</span>"
-                for t in tags
-            ])
-            gold_border = "border-color:rgba(214,178,94,0.5);background:rgba(214,178,94,0.04);" if is_best else ""
-            best_badge = "<span style='display:inline-block;background:#D6B25E;color:#0B0D10;font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:8px;letter-spacing:1px;vertical-align:middle;'>BEST</span>" if is_best else ""
-            title_color = "#D6B25E" if is_best else "#F0EDE6"
-            cards_html += f"""
-            <div style='background:rgba(255,255,255,0.035);border:1px solid rgba(214,178,94,0.18);
-                        {gold_border}border-radius:12px;padding:24px;display:flex;flex-direction:column;'>
-                <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:10px;'>{lbl}</div>
-                <div style='font-family:"Playfair Display",serif;font-size:1.05rem;font-weight:700;
-                            color:{title_color};margin-bottom:12px;line-height:1.4;'>{title}{best_badge}</div>
-                <div style='font-size:13px;color:#A89F92;line-height:1.75;font-weight:300;flex:1;margin-bottom:16px;'>{body}</div>
-                <div style='display:flex;flex-wrap:wrap;'>{tags_html}</div>
-            </div>"""
-        st.markdown(f"""
-        <div style='display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:12px;'>
-            {cards_html}
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
+        rows = [model_data[i:i+3] for i in range(0, len(model_data), 3)]
+        for row in rows:
+            cols = st.columns(len(row))
+            for col, (title, lbl, body, tags, is_best) in zip(cols, row):
+                tags_html = "".join(
+                    f"<span style='display:inline-block;background:rgba(214,178,94,0.12);"
+                    f"border:1px solid rgba(214,178,94,0.3);border-radius:20px;padding:3px 10px;"
+                    f"font-size:10px;color:#D6B25E;margin:3px 3px 0 0;'>{t}</span>"
+                    for t in tags
+                )
+                border_extra = "border-color:rgba(214,178,94,0.5);background:rgba(214,178,94,0.04);" if is_best else ""
+                best_badge = (
+                    "<span style='display:inline-block;background:#D6B25E;color:#0B0D10;"
+                    "font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;"
+                    "margin-left:8px;letter-spacing:1px;vertical-align:middle;'>BEST</span>"
+                ) if is_best else ""
+                title_color = "#D6B25E" if is_best else "#F0EDE6"
+                card_html = (
+                    f"<div style='background:rgba(255,255,255,0.035);border:1px solid rgba(214,178,94,0.18);"
+                    f"{border_extra}border-radius:12px;padding:24px;height:100%;'>"
+                    f"<div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;"
+                    f"color:#8C7A5B;margin-bottom:10px;'>{lbl}</div>"
+                    f"<div style='font-family:serif;font-size:1.05rem;font-weight:700;"
+                    f"color:{title_color};margin-bottom:12px;line-height:1.4;'>{title}{best_badge}</div>"
+                    f"<div style='font-size:13px;color:#A89F92;line-height:1.75;font-weight:300;"
+                    f"margin-bottom:16px;'>{body}</div>"
+                    f"<div style='display:flex;flex-wrap:wrap;'>{tags_html}</div>"
+                    f"</div>"
+                )
+                with col:
+                    st.markdown(card_html, unsafe_allow_html=True)
+            st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
 
     with ml_tab2:
         st.markdown("<div style='font-size:12px;color:#8C7A5B;margin-bottom:16px;'>Upload a PDF or paste resume text to compare all 4 classifiers side-by-side.</div>", unsafe_allow_html=True)
