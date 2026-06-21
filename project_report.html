@@ -964,7 +964,7 @@
         <div class="timeline-dot">2</div>
         <div class="timeline-content">
           <div class="timeline-title">Resume Upload &amp; Ingestion</div>
-          <div class="timeline-body">Candidate resumes are ingested from the pre-processed corpus (CSV). Future iterations support real-time PDF upload via <code style="color:var(--gold);">pdfplumber</code> and <code style="color:var(--gold);">PyMuPDF</code>.</div>
+          <div class="timeline-body">Candidate resumes can be ingested from the pre-processed corpus (2,400+ resumes) <strong>or uploaded as real PDFs</strong> directly in the dashboard via <code style="color:var(--gold);">pdfplumber</code>. Text is extracted in real-time and passed to the TF-IDF matching pipeline.</div>
         </div>
       </div>
       <div class="timeline-item">
@@ -1243,30 +1243,30 @@
 
     <p>
       The recommendation engine computes semantic similarity between any job description and
-      all candidate resumes using TF-IDF cosine similarity, then filters and sorts results
-      by match score.
+      candidate resumes using TF-IDF cosine similarity. It supports two candidate sources:
+      the pre-indexed corpus of 2,400+ resumes, or real PDFs uploaded live by the recruiter.
     </p>
 
     <div class="card-grid card-grid-2">
       <div class="card">
-        <div class="card-label">Input</div>
-        <div class="card-title">Job Description Query</div>
-        <div class="card-body">Hiring manager selects a job from the corpus or pastes a custom description. The text is vectorised using the shared 5 000-feature TF-IDF vocabulary.</div>
+        <div class="card-label">Input — Candidate Source</div>
+        <div class="card-title">Corpus Pool or PDF Upload</div>
+        <div class="card-body">Recruiter selects between the 2,400+ pre-processed candidate pool or uploads their own PDFs. Uploaded resumes are parsed in real-time using <code style="color:var(--gold);">pdfplumber</code>, structured, and matched instantly.</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Input — Job Description</div>
+        <div class="card-title">JD Selection or Custom Text</div>
+        <div class="card-body">Hiring manager selects a job from the corpus or pastes a custom description. The text is vectorised using the shared 5,000-feature TF-IDF vocabulary.</div>
       </div>
       <div class="card">
         <div class="card-label">Matching</div>
         <div class="card-title">Cosine Similarity</div>
-        <div class="card-body">Cosine similarity is computed between the JD vector and every resume vector. Returns a percentage Match Score reflecting text-level alignment between candidate and role.</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Filter</div>
-        <div class="card-title">Category-Based Filtering</div>
-        <div class="card-body">Optionally filter candidates by predicted role category before similarity computation. Reduces noise and improves relevance of shortlist.</div>
+        <div class="card-body">Cosine similarity is computed between the JD vector and every resume vector. Each candidate receives a percentage Match Score reflecting text-level semantic alignment with the role.</div>
       </div>
       <div class="card">
         <div class="card-label">Output</div>
-        <div class="card-title">Ranked Shortlist</div>
-        <div class="card-body">Top-N candidates returned with Resume ID, Category, Match Score, experience, skills, and education level displayed in the Streamlit dashboard.</div>
+        <div class="card-title">Ranked Shortlist + Skill Gap</div>
+        <div class="card-body">Top-N candidates returned with Match %, shared keywords, skill gap analysis, and an extractive resume summary. Results exportable as CSV for ATS integration.</div>
       </div>
     </div>
   </div>
@@ -1419,9 +1419,9 @@
         <div class="card-body">Serialisation of all trained pipeline objects (.pkl). Enables fast model reload without retraining on each app launch.</div>
       </div>
       <div class="card">
-        <div class="card-label">PDF Support (Future)</div>
-        <div class="card-title">pdfplumber · PyMuPDF</div>
-        <div class="card-body">Installed for future real-time PDF resume upload functionality. Enables text extraction from uploaded candidate documents.</div>
+        <div class="card-label">PDF Processing (Live)</div>
+        <div class="card-title">pdfplumber 0.10.3</div>
+        <div class="card-body">Active real-time PDF extraction across three dashboard modules: Recommendation Engine (bulk CV upload), CV Compare (side-by-side PDF upload), and ML Models Live Comparison (single PDF upload).</div>
       </div>
       <div class="card">
         <div class="card-label">Notebooks</div>
@@ -1431,22 +1431,24 @@
     </div>
 
     <div class="tech-grid" style="margin-top:28px;">
-      <div class="tech-pill">Python 3.11</div>
-      <div class="tech-pill">Streamlit 1.35</div>
-      <div class="tech-pill">Scikit-Learn 1.4.2</div>
-      <div class="tech-pill">XGBoost 2.0.3</div>
+      <div class="tech-pill">Python 3.12</div>
+      <div class="tech-pill">Streamlit 1.41.1</div>
+      <div class="tech-pill">Scikit-Learn 1.6.1</div>
+      <div class="tech-pill">XGBoost 2.1.3</div>
       <div class="tech-pill">Pandas 2.2.2</div>
-      <div class="tech-pill">NumPy 1.26.4</div>
-      <div class="tech-pill">NLTK 3.8.1</div>
+      <div class="tech-pill">NumPy 2.2.0</div>
+      <div class="tech-pill">NLTK 3.9.4</div>
       <div class="tech-pill">Plotly 5.22.0</div>
-      <div class="tech-pill">Matplotlib 3.8.4</div>
+      <div class="tech-pill">Matplotlib 3.10.0</div>
       <div class="tech-pill">Seaborn 0.13.2</div>
       <div class="tech-pill">Joblib 1.4.2</div>
-      <div class="tech-pill">SciPy 1.13.0</div>
-      <div class="tech-pill">pdfplumber 0.11.1</div>
-      <div class="tech-pill">PyMuPDF 1.24.5</div>
+      <div class="tech-pill">SciPy 1.15.0</div>
+      <div class="tech-pill">pdfplumber 0.10.3</div>
+      <div class="tech-pill">Cosine Similarity</div>
       <div class="tech-pill">TF-IDF</div>
       <div class="tech-pill">NLP</div>
+      <div class="tech-pill">ColumnTransformer</div>
+      <div class="tech-pill">GridSearchCV</div>
     </div>
   </div>
 

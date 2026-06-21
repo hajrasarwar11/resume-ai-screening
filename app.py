@@ -997,19 +997,7 @@ if page == "🏠 Home":
         </div>
         """, unsafe_allow_html=True)
 
-        btn_col1, btn_col2, _spacer = st.columns([1.2, 1.4, 3])
-        with btn_col1:
-            if st.button("Explore Project →", key="home_explore",
-                         help="Go to Workflow overview"):
-                st.session_state.page_idx = 1
-                st.rerun()
-        with btn_col2:
-            if st.button("View Dashboard", key="home_dash",
-                         help="Go to Performance Metrics"):
-                st.session_state.page_idx = 6
-                st.rerun()
-
-        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
 
         c1, c2, c3, c4 = st.columns(4)
         for col, val, lbl in zip(
@@ -1019,9 +1007,10 @@ if page == "🏠 Home":
         ):
             with col:
                 st.markdown(f"""
-                <div class='metric-glass'>
-                    <div class='metric-glass-val' style='font-size:1.5rem;'>{val}</div>
-                    <div class='metric-glass-lbl'>{lbl}</div>
+                <div class='metric-glass' style='min-height:120px;display:flex;flex-direction:column;
+                            align-items:center;justify-content:center;padding:20px 12px;'>
+                    <div class='metric-glass-val' style='font-size:1.8rem;'>{val}</div>
+                    <div class='metric-glass-lbl' style='font-size:10px;white-space:nowrap;'>{lbl}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1436,17 +1425,32 @@ elif page == "🧠 Resume Intelligence":
                 """, unsafe_allow_html=True)
 
     with ri_tab4:
-        st.markdown("<div style='font-size:13px;color:#A89F92;margin-bottom:20px;line-height:1.7;'>Paste two resumes side-by-side to compare predicted roles, confidence scores, ATS readiness, and skill overlap. Ideal for choosing between two shortlisted candidates.</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;color:#A89F92;margin-bottom:20px;line-height:1.7;'>Compare two candidates side-by-side — upload PDFs or paste resume text. Shows predicted roles, confidence scores, ATS readiness, and skill overlap.</div>", unsafe_allow_html=True)
         if not best_key:
             st.markdown("<div class='info-banner'>Load models first to enable CV comparison.</div>", unsafe_allow_html=True)
         else:
+            import pdfplumber as _pdf_cmp, io as _io_cmp
             cv_cola, cv_colb = st.columns(2, gap="large")
             with cv_cola:
                 st.markdown("<div style='font-size:12px;color:#D6B25E;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;'>Candidate A</div>", unsafe_allow_html=True)
-                cv_a = st.text_area("", height=200, placeholder="Paste Candidate A resume text...", key="cv_a", label_visibility="collapsed")
+                pdf_a = st.file_uploader("Upload PDF (Candidate A)", type=["pdf"], key="cv_pdf_a")
+                cv_a = st.text_area("Or paste resume text", height=160, placeholder="Paste Candidate A resume text...", key="cv_a")
+                if pdf_a:
+                    with _pdf_cmp.open(_io_cmp.BytesIO(pdf_a.read())) as _p:
+                        _extracted = "\n".join(pg.extract_text() or "" for pg in _p.pages)
+                    if _extracted.strip():
+                        cv_a = _extracted
+                        st.success(f"PDF loaded: {len(cv_a.split())} words extracted")
             with cv_colb:
                 st.markdown("<div style='font-size:12px;color:#D6B25E;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;'>Candidate B</div>", unsafe_allow_html=True)
-                cv_b = st.text_area("", height=200, placeholder="Paste Candidate B resume text...", key="cv_b", label_visibility="collapsed")
+                pdf_b = st.file_uploader("Upload PDF (Candidate B)", type=["pdf"], key="cv_pdf_b")
+                cv_b = st.text_area("Or paste resume text", height=160, placeholder="Paste Candidate B resume text...", key="cv_b")
+                if pdf_b:
+                    with _pdf_cmp.open(_io_cmp.BytesIO(pdf_b.read())) as _p:
+                        _extracted = "\n".join(pg.extract_text() or "" for pg in _p.pages)
+                    if _extracted.strip():
+                        cv_b = _extracted
+                        st.success(f"PDF loaded: {len(cv_b.split())} words extracted")
             compare_btn = st.button("Compare Candidates →", key="cv_compare")
 
             if compare_btn and cv_a.strip() and cv_b.strip():
@@ -1600,8 +1604,16 @@ elif page == "⚙️ ML Models":
                 """, unsafe_allow_html=True)
 
     with ml_tab2:
-        st.markdown("<div style='font-size:12px;color:#8C7A5B;margin-bottom:16px;'>Paste a resume and compare all 4 classifiers side-by-side.</div>", unsafe_allow_html=True)
-        lc_text = st.text_area("Resume Text", height=180, placeholder="Paste any resume text to compare all models...", key="lc_text", label_visibility="collapsed")
+        st.markdown("<div style='font-size:12px;color:#8C7A5B;margin-bottom:16px;'>Upload a PDF or paste resume text to compare all 4 classifiers side-by-side.</div>", unsafe_allow_html=True)
+        import pdfplumber as _pdf_lc, io as _io_lc
+        lc_pdf  = st.file_uploader("Upload Resume PDF", type=["pdf"], key="lc_pdf")
+        lc_text = st.text_area("Or paste resume text", height=150, placeholder="Paste any resume text to compare all models...", key="lc_text")
+        if lc_pdf:
+            with _pdf_lc.open(_io_lc.BytesIO(lc_pdf.read())) as _plc:
+                _lc_extracted = "\n".join(pg.extract_text() or "" for pg in _plc.pages)
+            if _lc_extracted.strip():
+                lc_text = _lc_extracted
+                st.success(f"PDF loaded: {len(lc_text.split())} words extracted")
         lc_btn  = st.button("Compare All Models →", key="lc_run")
         if lc_btn and lc_text.strip():
             model_keys = [('svm','SVM'), ('rf','Random Forest'), ('lr','Logistic Reg.'), ('xgb','XGBoost')]
@@ -1856,9 +1868,52 @@ elif page == "💼 Recommendation Engine":
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<div class='section-eyebrow'>Live Matcher</div><div class='section-rule'></div>", unsafe_allow_html=True)
 
-    if 'tfidf_match' not in models or 'resume' not in data:
+    if 'tfidf_match' not in models:
         st.markdown("<div class='info-banner'>Run notebook 04 to enable the recommendation engine.</div>", unsafe_allow_html=True)
     else:
+        import pdfplumber as _pdf_rec, io as _io_rec
+
+        # ── Source selector ──
+        st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;'>Candidate Source</div>", unsafe_allow_html=True)
+        rec_source = st.radio("", ["Use Candidate Pool (2,400+ resumes)", "Upload My Own CVs (PDF)"],
+                              horizontal=True, key="rec_source", label_visibility="collapsed")
+
+        # ── Upload block ──
+        uploaded_rec_dfs = []
+        if rec_source == "Upload My Own CVs (PDF)":
+            rec_pdfs = st.file_uploader("Upload candidate CVs (PDF)", type=["pdf"],
+                                        accept_multiple_files=True, key="rec_cvs")
+            if rec_pdfs:
+                import re as _re_rec
+                for _rpdf in rec_pdfs:
+                    try:
+                        with _pdf_rec.open(_io_rec.BytesIO(_rpdf.read())) as _rp:
+                            _rtxt = "\n".join(pg.extract_text() or "" for pg in _rp.pages)
+                        if _rtxt.strip():
+                            _rl = _rtxt.lower()
+                            _em = _re_rec.search(r'(\d+)\s*(?:\+\s*)?(?:year|yr)', _rl)
+                            _exp = float(_em.group(1)) if _em else 0.0
+                            _vocab_r = ["python","java","sql","javascript","r","c++","machine learning",
+                                "deep learning","tensorflow","pytorch","aws","azure","docker","kubernetes",
+                                "git","linux","excel","tableau","power bi","spark","hadoop","react","node",
+                                "django","flask","spring","nlp","computer vision","data analysis"]
+                            _sc = sum(1 for s in _vocab_r if s in _rl)
+                            uploaded_rec_dfs.append({
+                                "Resume ID": _rpdf.name,
+                                "Category": "Uploaded",
+                                "clean_text": _rtxt,
+                                "Experience Years": _exp,
+                                "skill_count": float(_sc),
+                                "extracted_skills": [s for s in _vocab_r if s in _rl],
+                            })
+                    except Exception:
+                        pass
+                if uploaded_rec_dfs:
+                    st.success(f"{len(uploaded_rec_dfs)} CV(s) uploaded and parsed successfully.")
+                else:
+                    st.warning("Could not extract text from the uploaded PDFs.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
         col_cfg, col_res = st.columns([1, 1.2], gap="large")
         with col_cfg:
             st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;'>Job Description</div>", unsafe_allow_html=True)
@@ -1886,92 +1941,96 @@ elif page == "💼 Recommendation Engine":
 
         with col_res:
             if find_btn and jd_text:
-                with st.spinner("Matching candidates..."):
-                    try:
-                        from collections import Counter
-                        tfidf_m     = models['tfidf_match']
-                        r_df        = data['resume']
-                        resume_vecs = tfidf_m.transform(r_df['clean_text'])
-                        jd_vec      = tfidf_m.transform([jd_text])
-                        scores      = cosine_similarity(jd_vec, resume_vecs).flatten()
-                        top_idx     = np.argsort(scores)[::-1][:top_n]
-                        results     = r_df.iloc[top_idx].copy()
-                        results['Match %'] = (scores[top_idx] * 100).round(1)
+                # resolve candidate pool
+                if rec_source == "Upload My Own CVs (PDF)" and uploaded_rec_dfs:
+                    active_df = pd.DataFrame(uploaded_rec_dfs)
+                elif 'resume' in data:
+                    active_df = data['resume']
+                else:
+                    st.warning("No candidate data available. Please upload CVs or ensure the candidate pool is loaded.")
+                    active_df = None
 
-                        # Extract JD top keywords using TF-IDF feature names
+                if active_df is not None:
+                    with st.spinner("Matching candidates..."):
                         try:
-                            feature_names = np.array(tfidf_m.get_feature_names_out())
-                            jd_arr = jd_vec.toarray()[0]
-                            jd_top_terms = set(feature_names[np.argsort(jd_arr)[::-1][:30]])
-                        except Exception:
-                            jd_top_terms = set(jd_text.lower().split())
+                            from collections import Counter
+                            tfidf_m     = models['tfidf_match']
+                            r_df        = active_df
+                            resume_vecs = tfidf_m.transform(r_df['clean_text'])
+                            jd_vec      = tfidf_m.transform([jd_text])
+                            scores      = cosine_similarity(jd_vec, resume_vecs).flatten()
+                            top_idx     = np.argsort(scores)[::-1][:top_n]
+                            results     = r_df.iloc[top_idx].copy()
+                            results['Match %'] = (scores[top_idx] * 100).round(1)
 
-                        # JD required skills (simple extraction)
-                        common_skills_vocab = ["python","java","sql","javascript","r","c++","machine learning",
-                            "deep learning","tensorflow","pytorch","aws","azure","docker","kubernetes",
-                            "git","linux","excel","tableau","power bi","spark","hadoop","react","node",
-                            "django","flask","spring","nlp","computer vision","data analysis"]
-                        jd_lower = jd_text.lower()
-                        jd_required_skills = [s for s in common_skills_vocab if s in jd_lower]
+                            # Extract JD top keywords
+                            try:
+                                feature_names = np.array(tfidf_m.get_feature_names_out())
+                                jd_arr = jd_vec.toarray()[0]
+                                jd_top_terms = set(feature_names[np.argsort(jd_arr)[::-1][:30]])
+                            except Exception:
+                                jd_top_terms = set(jd_text.lower().split())
 
-                        # Export shortlist
-                        export_cols = ['Resume ID','Category','Match %','Experience Years','skill_count']
-                        avail_cols = [c for c in export_cols if c in results.columns]
-                        export_df = results[avail_cols].reset_index(drop=True)
-                        export_csv = export_df.to_csv(index=False).encode('utf-8')
-                        st.download_button(
-                            label="⬇ Export Shortlist (CSV)",
-                            data=export_csv,
-                            file_name="candidate_shortlist.csv",
-                            mime="text/csv",
-                            key="export_csv"
-                        )
+                            common_skills_vocab = ["python","java","sql","javascript","r","c++","machine learning",
+                                "deep learning","tensorflow","pytorch","aws","azure","docker","kubernetes",
+                                "git","linux","excel","tableau","power bi","spark","hadoop","react","node",
+                                "django","flask","spring","nlp","computer vision","data analysis"]
+                            jd_lower = jd_text.lower()
+                            jd_required_skills = [s for s in common_skills_vocab if s in jd_lower]
 
-                        for i, (_, row) in enumerate(results.iterrows()):
-                            rank = i + 1
-                            is_top = rank == 1
-                            card_style = "border-color:rgba(214,178,94,0.5);background:rgba(214,178,94,0.04);" if is_top else ""
+                            export_cols = ['Resume ID','Category','Match %','Experience Years','skill_count']
+                            avail_cols = [c for c in export_cols if c in results.columns]
+                            export_df = results[avail_cols].reset_index(drop=True)
+                            export_csv = export_df.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="⬇ Export Shortlist (CSV)",
+                                data=export_csv,
+                                file_name="candidate_shortlist.csv",
+                                mime="text/csv",
+                                key="export_csv"
+                            )
 
-                            # Shared keywords (Why This Match)
-                            candidate_text = str(row.get('clean_text',''))
-                            cand_words = set(candidate_text.lower().split())
-                            shared_kws = list(jd_top_terms & cand_words)[:5]
+                            for i, (_, row) in enumerate(results.iterrows()):
+                                rank = i + 1
+                                is_top = rank == 1
 
-                            # Skill gap
-                            cand_skills = [str(s).lower() for s in (row.get('extracted_skills') or [])]
-                            missing_skills = [s for s in jd_required_skills if s not in " ".join(cand_skills)]
+                                candidate_text = str(row.get('clean_text',''))
+                                cand_words = set(candidate_text.lower().split())
+                                shared_kws = list(jd_top_terms & cand_words)[:5]
 
-                            # Extractive summary (best sentence)
-                            sentences = [s.strip() for s in candidate_text.replace('\n',' ').split('.') if len(s.strip()) > 30]
-                            best_sent = ""
-                            best_ov = 0
-                            for sent in sentences[:20]:
-                                ov = sum(1 for w in jd_top_terms if w in sent.lower())
-                                if ov > best_ov:
-                                    best_ov = ov
-                                    best_sent = sent
+                                cand_skills = [str(s).lower() for s in (row.get('extracted_skills') or [])]
+                                missing_skills = [s for s in jd_required_skills if s not in " ".join(cand_skills)]
 
-                            shared_html = " ".join(f"<span style='background:rgba(214,178,94,0.12);color:#D6B25E;padding:2px 7px;border-radius:4px;font-size:10px;'>{k}</span>" for k in shared_kws) if shared_kws else "<span style='color:#6B6560;font-size:11px;'>—</span>"
-                            missing_html = " ".join(f"<span style='border:1px solid rgba(140,122,91,0.4);color:#8C7A5B;padding:2px 7px;border-radius:4px;font-size:10px;'>{s}</span>" for s in missing_skills[:5]) if missing_skills else "<span style='color:#D6B25E;font-size:11px;'>✓ All key skills present</span>"
+                                sentences = [s.strip() for s in candidate_text.replace('\n',' ').split('.') if len(s.strip()) > 30]
+                                best_sent = ""
+                                best_ov = 0
+                                for sent in sentences[:20]:
+                                    ov = sum(1 for w in jd_top_terms if w in sent.lower())
+                                    if ov > best_ov:
+                                        best_ov = ov
+                                        best_sent = sent
 
-                            with st.expander(f"#{rank}  {row['Category']}  ·  {row['Match %']:.1f}% match  ·  {row['Experience Years']}y exp", expanded=(rank==1)):
-                                st.markdown(f"""
-                                <div style='margin-bottom:10px;'>
-                                    <div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;margin-bottom:5px;'>Why This Match</div>
-                                    {shared_html}
-                                </div>
-                                <div style='margin-bottom:10px;'>
-                                    <div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;margin-bottom:5px;'>Skill Gap</div>
-                                    {missing_html}
-                                </div>
-                                {f"<div style='font-size:12px;color:#A89F92;line-height:1.6;border-left:2px solid rgba(214,178,94,0.3);padding-left:10px;font-style:italic;'>{best_sent[:200]}...</div>" if best_sent else ""}
-                                <div style='margin-top:8px;font-size:11px;color:#6B6560;'>
-                                    Resume ID: {row["Resume ID"]} &nbsp;·&nbsp; Skills: {row["skill_count"]}
-                                </div>
-                                """, unsafe_allow_html=True)
+                                shared_html = " ".join(f"<span style='background:rgba(214,178,94,0.12);color:#D6B25E;padding:2px 7px;border-radius:4px;font-size:10px;'>{k}</span>" for k in shared_kws) if shared_kws else "<span style='color:#6B6560;font-size:11px;'>—</span>"
+                                missing_html = " ".join(f"<span style='border:1px solid rgba(140,122,91,0.4);color:#8C7A5B;padding:2px 7px;border-radius:4px;font-size:10px;'>{s}</span>" for s in missing_skills[:5]) if missing_skills else "<span style='color:#D6B25E;font-size:11px;'>✓ All key skills present</span>"
 
-                    except Exception as e:
-                        st.error(f"Matching error: {e}")
+                                with st.expander(f"#{rank}  {row['Category']}  ·  {row['Match %']:.1f}% match  ·  {row['Experience Years']}y exp", expanded=(rank==1)):
+                                    st.markdown(f"""
+                                    <div style='margin-bottom:10px;'>
+                                        <div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;margin-bottom:5px;'>Why This Match</div>
+                                        {shared_html}
+                                    </div>
+                                    <div style='margin-bottom:10px;'>
+                                        <div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;margin-bottom:5px;'>Skill Gap</div>
+                                        {missing_html}
+                                    </div>
+                                    {f"<div style='font-size:12px;color:#A89F92;line-height:1.6;border-left:2px solid rgba(214,178,94,0.3);padding-left:10px;font-style:italic;'>{best_sent[:200]}...</div>" if best_sent else ""}
+                                    <div style='margin-top:8px;font-size:11px;color:#6B6560;'>
+                                        Resume ID: {row["Resume ID"]} &nbsp;·&nbsp; Skills: {row["skill_count"]}
+                                    </div>
+                                    """, unsafe_allow_html=True)
+
+                        except Exception as e:
+                            st.error(f"Matching error: {e}")
             else:
                 st.markdown("""
                 <div style='text-align:center;padding:80px 20px;'>
@@ -2363,9 +2422,15 @@ elif page == "👥 About":
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<div class='section-eyebrow'>Technology Stack</div><div class='section-rule'></div>", unsafe_allow_html=True)
 
-    for t in ["Python 3.11","Pandas","NumPy","Scikit-Learn","XGBoost","TF-IDF","NLTK",
-              "Matplotlib","Seaborn","Plotly","Streamlit","NLP","Joblib","SciPy","K-Means"]:
-        st.markdown(f"<span class='tech-pill'>{t}</span>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;'>
+        """ + "".join(f"<span class='tech-pill'>{t}</span>" for t in [
+        "Python 3.12","Pandas","NumPy","Scikit-Learn","XGBoost","TF-IDF","NLTK",
+        "Matplotlib","Seaborn","Plotly","Streamlit","NLP","Joblib","SciPy","K-Means",
+        "pdfplumber","Cosine Similarity","ColumnTransformer","GridSearchCV","RandomizedSearchCV"
+    ]) + """
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<div class='section-eyebrow'>Project Structure</div><div class='section-rule'></div>", unsafe_allow_html=True)
