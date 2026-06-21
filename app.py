@@ -803,73 +803,68 @@ code.inline {
 </style>
 """, unsafe_allow_html=True)
 
-# ── Sidebar patch: move collapsedControl to body (escapes transform container) ──
+# ── Sidebar: proxy button at document.body level (outside React VDOM) ──
 import streamlit.components.v1 as components
 components.html("""
 <script>
-(function() {
+(function(){
     var doc = window.parent.document;
+    var PID = '_airecruit_sb_proxy';
 
-    function styleExpandBtn(btn) {
-        btn.style.setProperty('position',       'fixed',                      'important');
-        btn.style.setProperty('left',           '0',                          'important');
-        btn.style.setProperty('top',            '50%',                        'important');
-        btn.style.setProperty('transform',      'translateY(-50%)',           'important');
-        btn.style.setProperty('visibility',     'visible',                    'important');
-        btn.style.setProperty('opacity',        '1',                          'important');
-        btn.style.setProperty('display',        'flex',                       'important');
-        btn.style.setProperty('align-items',    'center',                     'important');
-        btn.style.setProperty('justify-content','center',                     'important');
-        btn.style.setProperty('width',          '28px',                       'important');
-        btn.style.setProperty('height',         '52px',                       'important');
-        btn.style.setProperty('background',     '#13161B',                    'important');
-        btn.style.setProperty('border',         '1px solid rgba(214,178,94,0.45)', 'important');
-        btn.style.setProperty('border-left',    'none',                       'important');
-        btn.style.setProperty('border-radius',  '0 10px 10px 0',              'important');
-        btn.style.setProperty('z-index',        '2147483647',                 'important');
-        btn.style.setProperty('cursor',         'pointer',                    'important');
-        btn.style.setProperty('box-shadow',     '3px 0 16px rgba(0,0,0,0.6)', 'important');
-        /* inner icon */
-        var icon = btn.querySelector('[data-testid="stIconMaterial"]');
-        if (icon) {
-            if (icon.textContent.trim() !== '\u00BB') icon.textContent = '\u00BB';
-            icon.style.setProperty('color',     '#D6B25E', 'important');
-            icon.style.setProperty('font-size', '16px',    'important');
-        }
-        var svg = btn.querySelector('svg');
-        if (svg) {
-            svg.style.setProperty('stroke', '#D6B25E', 'important');
-            svg.style.setProperty('color',  '#D6B25E', 'important');
-        }
+    function mkProxy(){
+        var p = doc.createElement('button');
+        p.id = PID;
+        p.title = 'Expand Navigation';
+        p.innerHTML = '\u00BB';
+        p.style.cssText = 'position:fixed!important;left:0!important;top:50%!important;'+
+            'transform:translateY(-50%)!important;width:28px!important;height:52px!important;'+
+            'background:#13161B!important;border:1px solid rgba(214,178,94,0.45)!important;'+
+            'border-left:none!important;border-radius:0 10px 10px 0!important;'+
+            'z-index:2147483647!important;cursor:pointer!important;'+
+            'color:#D6B25E!important;font-size:20px!important;font-family:Georgia,serif!important;'+
+            'display:flex!important;align-items:center!important;justify-content:center!important;'+
+            'box-shadow:3px 0 16px rgba(0,0,0,0.6)!important;padding:0!important;outline:none!important;';
+        p.onmouseenter = function(){ p.style.background='rgba(214,178,94,0.12)!important'; };
+        p.onmouseleave = function(){ p.style.background='#13161B!important'; };
+        p.onclick = function(){
+            var orig = doc.querySelector('[data-testid="collapsedControl"]');
+            if(orig){ orig.click(); }
+        };
+        doc.body.appendChild(p);
+        return p;
     }
 
-    function patch() {
-        /* ── « collapse button inside sidebar ── */
+    function patch(){
+        var orig  = doc.querySelector('[data-testid="collapsedControl"]');
+        var proxy = doc.getElementById(PID);
+
+        if(orig){
+            /* sidebar is collapsed — hide Streamlit's own button, show proxy */
+            orig.style.setProperty('opacity','0','important');
+            orig.style.setProperty('pointer-events','none','important');
+            if(!proxy) proxy = mkProxy();
+            proxy.style.setProperty('display','flex','important');
+        } else {
+            /* sidebar is expanded — hide proxy */
+            if(proxy) proxy.style.setProperty('display','none','important');
+        }
+
+        /* style the « collapse button inside the sidebar */
         var colIcon = doc.querySelector('[data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"]');
-        if (colIcon && colIcon.textContent !== '\u00AB') {
+        if(colIcon && colIcon.textContent !== '\u00AB'){
             colIcon.textContent = '\u00AB';
             var cb = colIcon.closest('button');
-            if (cb) {
+            if(cb){
                 cb.style.background   = 'rgba(214,178,94,0.15)';
                 cb.style.border       = '1px solid rgba(214,178,94,0.55)';
                 cb.style.borderRadius = '8px';
             }
         }
-
-        /* ── » expand button: move to <body> to escape sidebar transform ── */
-        var expBtn = doc.querySelector('[data-testid="collapsedControl"]');
-        if (expBtn) {
-            /* Move to body if not already a direct child */
-            if (expBtn.parentElement !== doc.body) {
-                doc.body.appendChild(expBtn);
-            }
-            styleExpandBtn(expBtn);
-        }
     }
 
     patch();
-    setInterval(patch, 200);
-    new MutationObserver(patch).observe(doc.body, {childList: true, subtree: true});
+    setInterval(patch, 150);
+    new MutationObserver(patch).observe(doc.body,{childList:true,subtree:true});
 })();
 </script>
 """, height=0)
@@ -3009,435 +3004,751 @@ elif page == "💼 Recommendation Engine":
         <div class='section-eyebrow'>Section 04 · Semantic Matching</div>
         <div class='section-title'>Recommendation Engine</div>
         <div class='section-sub'>
-            Match any job description against the full candidate pool using TF-IDF cosine similarity.
-            Optionally filter by role category for precision shortlisting.
+            End-to-end recruitment intelligence: match candidates, analyze job descriptions, and estimate salaries — all in one place.
         </div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("<div class='section-rule'></div>", unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class='formula-box'>
-        Final Score = <span style='color:#F0EDE6;font-weight:700;'>60%</span> Cosine Match
-        &nbsp;+&nbsp; <span style='color:#F0EDE6;font-weight:700;'>20%</span> Normalised Experience
-        &nbsp;+&nbsp; <span style='color:#F0EDE6;font-weight:700;'>20%</span> Normalised Skill Count
-    </div>
-    """, unsafe_allow_html=True)
+    _rec_tab1, _rec_tab2, _rec_tab3 = st.tabs(["🎯 Live Matcher", "🔍 JD Analyzer", "💰 Salary Estimator"])
 
-    st.markdown("<div class='section-eyebrow' style='margin-top:8px;'>Live Matcher</div><div class='section-rule'></div>", unsafe_allow_html=True)
+    # ──────────────────────────────────────────────────────────
+    # TAB 1 · LIVE MATCHER
+    # ──────────────────────────────────────────────────────────
+    with _rec_tab1:
+        st.markdown("""
+        <div class='formula-box' style='margin-top:16px;'>
+            Final Score = <span style='color:#F0EDE6;font-weight:700;'>60%</span> Cosine Match
+            &nbsp;+&nbsp; <span style='color:#F0EDE6;font-weight:700;'>20%</span> Normalised Experience
+            &nbsp;+&nbsp; <span style='color:#F0EDE6;font-weight:700;'>20%</span> Normalised Skill Count
+        </div>
+        """, unsafe_allow_html=True)
 
-    if 'tfidf_match' not in models:
-        st.markdown("<div class='info-banner'>Run notebook 04 to enable the recommendation engine.</div>", unsafe_allow_html=True)
-    else:
-        import pdfplumber as _pdf_rec, io as _io_rec
-
-        # ── Source selector ──
-        st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;'>Candidate Source</div>", unsafe_allow_html=True)
-        rec_source = st.radio("", ["Use Candidate Pool (2,400+ resumes)", "Upload My Own CVs (PDF)"],
-                              horizontal=True, key="rec_source", label_visibility="collapsed")
-
-        # ── Upload block ──
-        uploaded_rec_dfs = []
-        if rec_source == "Upload My Own CVs (PDF)":
-            rec_pdfs = st.file_uploader("Upload candidate CVs (PDF)", type=["pdf"],
-                                        accept_multiple_files=True, key="rec_cvs")
-            if rec_pdfs:
-                import re as _re_rec
-                for _rpdf in rec_pdfs:
-                    try:
-                        with _pdf_rec.open(_io_rec.BytesIO(_rpdf.read())) as _rp:
-                            _rtxt = "\n".join(pg.extract_text() or "" for pg in _rp.pages)
-                        if _rtxt.strip():
-                            _rl = _rtxt.lower()
-                            _em = _re_rec.search(r'(\d+)\s*(?:\+\s*)?(?:year|yr)', _rl)
-                            _exp = float(_em.group(1)) if _em else 0.0
-                            _vocab_r = ["python","java","sql","javascript","r","c++","machine learning",
-                                "deep learning","tensorflow","pytorch","aws","azure","docker","kubernetes",
-                                "git","linux","excel","tableau","power bi","spark","hadoop","react","node",
-                                "django","flask","spring","nlp","computer vision","data analysis"]
-                            _sc = sum(1 for s in _vocab_r if s in _rl)
-                            uploaded_rec_dfs.append({
-                                "Resume ID": _rpdf.name,
-                                "Category": "Uploaded",
-                                "clean_text": _rtxt,
-                                "Experience Years": _exp,
-                                "skill_count": float(_sc),
-                                "extracted_skills": [s for s in _vocab_r if s in _rl],
-                            })
-                    except Exception:
-                        pass
-                if uploaded_rec_dfs:
-                    st.success(f"{len(uploaded_rec_dfs)} CV(s) uploaded and parsed successfully.")
-                else:
-                    st.warning("Could not extract text from the uploaded PDFs.")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_cfg, col_res = st.columns([1, 1.2], gap="large")
-        with col_cfg:
-            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;'>Job Description</div>", unsafe_allow_html=True)
-            _rec_prefill      = st.session_state.pop("rec_jd_prefill", "")
-            _rec_prefill_lbl  = st.session_state.pop("rec_prefill_label", "")
-            if _rec_prefill:
-                st.markdown(
-                    f"<div style='background:rgba(107,159,212,0.08);border:1px solid rgba(107,159,212,0.3);"
-                    f"border-radius:8px;padding:9px 14px;font-size:12px;color:#6B9FD4;margin-bottom:12px;'>"
-                    f"🔍 Pre-filled from History" + (f": <b>{_rec_prefill_lbl}</b>" if _rec_prefill_lbl else "") +
-                    f" — edit below or clear to use a job description instead.</div>",
-                    unsafe_allow_html=True
-                )
-                jd_text = st.text_area("Resume / Job Description", height=180,
-                                        label_visibility="collapsed",
-                                        key="rec_jd_text",
-                                        value=_rec_prefill)
-            elif 'jobs' in data:
-                job_titles = data['jobs']['title'].tolist()
-                sel_title  = st.selectbox("Select Position", job_titles[:100], label_visibility="collapsed")
-                job_row    = data['jobs'][data['jobs']['title'] == sel_title].iloc[0]
-                jd_text    = job_row['clean_description']
-                st.markdown(f"""
-                <div class='glass-card-sm' style='margin-top:10px;'>
-                    <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:8px;'>Position Details</div>
-                    <div style='font-size:12.5px;color:#A89F92;line-height:1.8;'>
-                        📍 {job_row.get('location','N/A')}<br>
-                        🎓 {job_row.get('formatted_experience_level','N/A')}<br>
-                        💼 {job_row.get('formatted_work_type','N/A')}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                jd_text = st.text_area("Job Description", height=180, label_visibility="collapsed",
-                                        placeholder="Paste job description here...",
-                                        key="rec_jd_text",
-                                        value="")
-
-            top_n = st.slider("Candidates to Return", 3, 15, 8)
-            find_btn = st.button("Find Best Candidates  →", key="rec_find")
-
-        with col_res:
-            if find_btn and jd_text:
-                # resolve candidate pool
-                if rec_source == "Upload My Own CVs (PDF)" and uploaded_rec_dfs:
-                    active_df = pd.DataFrame(uploaded_rec_dfs)
-                elif 'resume' in data:
-                    active_df = data['resume']
-                else:
-                    st.warning("No candidate data available. Please upload CVs or ensure the candidate pool is loaded.")
-                    active_df = None
-
-                if active_df is not None:
-                    with st.spinner("Matching candidates..."):
+        if 'tfidf_match' not in models:
+            st.markdown("<div class='info-banner'>Run notebook 04 to enable the recommendation engine.</div>", unsafe_allow_html=True)
+        else:
+            import pdfplumber as _pdf_rec, io as _io_rec
+    
+            # ── Source selector ──
+            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;'>Candidate Source</div>", unsafe_allow_html=True)
+            rec_source = st.radio("", ["Use Candidate Pool (2,400+ resumes)", "Upload My Own CVs (PDF)"],
+                                  horizontal=True, key="rec_source", label_visibility="collapsed")
+    
+            # ── Upload block ──
+            uploaded_rec_dfs = []
+            if rec_source == "Upload My Own CVs (PDF)":
+                rec_pdfs = st.file_uploader("Upload candidate CVs (PDF)", type=["pdf"],
+                                            accept_multiple_files=True, key="rec_cvs")
+                if rec_pdfs:
+                    import re as _re_rec
+                    for _rpdf in rec_pdfs:
                         try:
-                            from collections import Counter
-                            tfidf_m     = models['tfidf_match']
-                            r_df        = active_df
-                            resume_vecs = tfidf_m.transform(r_df['clean_text'])
-                            jd_vec      = tfidf_m.transform([jd_text])
-                            scores      = cosine_similarity(jd_vec, resume_vecs).flatten()
-                            top_idx     = np.argsort(scores)[::-1][:top_n]
-                            results     = r_df.iloc[top_idx].copy()
-                            results['Match %'] = (scores[top_idx] * 100).round(1)
-
-                            # Extract JD top keywords
+                            with _pdf_rec.open(_io_rec.BytesIO(_rpdf.read())) as _rp:
+                                _rtxt = "\n".join(pg.extract_text() or "" for pg in _rp.pages)
+                            if _rtxt.strip():
+                                _rl = _rtxt.lower()
+                                _em = _re_rec.search(r'(\d+)\s*(?:\+\s*)?(?:year|yr)', _rl)
+                                _exp = float(_em.group(1)) if _em else 0.0
+                                _vocab_r = ["python","java","sql","javascript","r","c++","machine learning",
+                                    "deep learning","tensorflow","pytorch","aws","azure","docker","kubernetes",
+                                    "git","linux","excel","tableau","power bi","spark","hadoop","react","node",
+                                    "django","flask","spring","nlp","computer vision","data analysis"]
+                                _sc = sum(1 for s in _vocab_r if s in _rl)
+                                uploaded_rec_dfs.append({
+                                    "Resume ID": _rpdf.name,
+                                    "Category": "Uploaded",
+                                    "clean_text": _rtxt,
+                                    "Experience Years": _exp,
+                                    "skill_count": float(_sc),
+                                    "extracted_skills": [s for s in _vocab_r if s in _rl],
+                                })
+                        except Exception:
+                            pass
+                    if uploaded_rec_dfs:
+                        st.success(f"{len(uploaded_rec_dfs)} CV(s) uploaded and parsed successfully.")
+                    else:
+                        st.warning("Could not extract text from the uploaded PDFs.")
+    
+            st.markdown("<br>", unsafe_allow_html=True)
+            col_cfg, col_res = st.columns([1, 1.2], gap="large")
+            with col_cfg:
+                st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;'>Job Description</div>", unsafe_allow_html=True)
+                _rec_prefill      = st.session_state.pop("rec_jd_prefill", "")
+                _rec_prefill_lbl  = st.session_state.pop("rec_prefill_label", "")
+                if _rec_prefill:
+                    st.markdown(
+                        f"<div style='background:rgba(107,159,212,0.08);border:1px solid rgba(107,159,212,0.3);"
+                        f"border-radius:8px;padding:9px 14px;font-size:12px;color:#6B9FD4;margin-bottom:12px;'>"
+                        f"🔍 Pre-filled from History" + (f": <b>{_rec_prefill_lbl}</b>" if _rec_prefill_lbl else "") +
+                        f" — edit below or clear to use a job description instead.</div>",
+                        unsafe_allow_html=True
+                    )
+                    jd_text = st.text_area("Resume / Job Description", height=180,
+                                            label_visibility="collapsed",
+                                            key="rec_jd_text",
+                                            value=_rec_prefill)
+                elif 'jobs' in data:
+                    job_titles = data['jobs']['title'].tolist()
+                    sel_title  = st.selectbox("Select Position", job_titles[:100], label_visibility="collapsed")
+                    job_row    = data['jobs'][data['jobs']['title'] == sel_title].iloc[0]
+                    jd_text    = job_row['clean_description']
+                    st.markdown(f"""
+                    <div class='glass-card-sm' style='margin-top:10px;'>
+                        <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:8px;'>Position Details</div>
+                        <div style='font-size:12.5px;color:#A89F92;line-height:1.8;'>
+                            📍 {job_row.get('location','N/A')}<br>
+                            🎓 {job_row.get('formatted_experience_level','N/A')}<br>
+                            💼 {job_row.get('formatted_work_type','N/A')}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    jd_text = st.text_area("Job Description", height=180, label_visibility="collapsed",
+                                            placeholder="Paste job description here...",
+                                            key="rec_jd_text",
+                                            value="")
+    
+                top_n = st.slider("Candidates to Return", 3, 15, 8)
+                find_btn = st.button("Find Best Candidates  →", key="rec_find")
+    
+            with col_res:
+                if find_btn and jd_text:
+                    # resolve candidate pool
+                    if rec_source == "Upload My Own CVs (PDF)" and uploaded_rec_dfs:
+                        active_df = pd.DataFrame(uploaded_rec_dfs)
+                    elif 'resume' in data:
+                        active_df = data['resume']
+                    else:
+                        st.warning("No candidate data available. Please upload CVs or ensure the candidate pool is loaded.")
+                        active_df = None
+    
+                    if active_df is not None:
+                        with st.spinner("Matching candidates..."):
                             try:
-                                feature_names = np.array(tfidf_m.get_feature_names_out())
-                                jd_arr = jd_vec.toarray()[0]
-                                jd_top_terms = set(feature_names[np.argsort(jd_arr)[::-1][:30]])
-                            except Exception:
-                                jd_top_terms = set(jd_text.lower().split())
-
-                            common_skills_vocab = ["python","java","sql","javascript","r","c++","machine learning",
-                                "deep learning","tensorflow","pytorch","aws","azure","docker","kubernetes",
-                                "git","linux","excel","tableau","power bi","spark","hadoop","react","node",
-                                "django","flask","spring","nlp","computer vision","data analysis"]
-                            jd_lower = jd_text.lower()
-                            jd_required_skills = [s for s in common_skills_vocab if s in jd_lower]
-
-                            export_cols = ['Resume ID','Category','Match %','Experience Years','skill_count']
-                            avail_cols = [c for c in export_cols if c in results.columns]
-                            export_df = results[avail_cols].reset_index(drop=True)
-                            export_csv = export_df.to_csv(index=False).encode('utf-8')
-                            st.download_button(
-                                label="⬇ Export Shortlist (CSV)",
-                                data=export_csv,
-                                file_name="candidate_shortlist.csv",
-                                mime="text/csv",
-                                key="export_csv"
-                            )
-
-                            for i, (_, row) in enumerate(results.iterrows()):
-                                rank = i + 1
-                                is_top = rank == 1
-
-                                candidate_text = str(row.get('clean_text',''))
-                                cand_words = set(candidate_text.lower().split())
-                                shared_kws = list(jd_top_terms & cand_words)[:5]
-
-                                cand_skills = [str(s).lower() for s in (row.get('extracted_skills') or [])]
-                                missing_skills = [s for s in jd_required_skills if s not in " ".join(cand_skills)]
-
-                                sentences = [s.strip() for s in candidate_text.replace('\n',' ').split('.') if len(s.strip()) > 30]
-                                best_sent = ""
-                                best_ov = 0
-                                for sent in sentences[:20]:
-                                    ov = sum(1 for w in jd_top_terms if w in sent.lower())
-                                    if ov > best_ov:
-                                        best_ov = ov
-                                        best_sent = sent
-
-                                shared_html = " ".join(f"<span style='background:rgba(214,178,94,0.12);color:#D6B25E;padding:2px 7px;border-radius:4px;font-size:10px;'>{k}</span>" for k in shared_kws) if shared_kws else "<span style='color:#6B6560;font-size:11px;'>—</span>"
-                                missing_html = " ".join(f"<span style='border:1px solid rgba(140,122,91,0.4);color:#8C7A5B;padding:2px 7px;border-radius:4px;font-size:10px;'>{s}</span>" for s in missing_skills[:5]) if missing_skills else "<span style='color:#D6B25E;font-size:11px;'>✓ All key skills present</span>"
-
-                                with st.expander(f"#{rank}  {row['Category']}  ·  {row['Match %']:.1f}% match  ·  {row['Experience Years']}y exp", expanded=(rank==1)):
-                                    st.markdown(f"""
-                                    <div style='margin-bottom:10px;'>
-                                        <div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;margin-bottom:5px;'>Why This Match</div>
-                                        {shared_html}
-                                    </div>
-                                    <div style='margin-bottom:10px;'>
-                                        <div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;margin-bottom:5px;'>Skill Gap</div>
-                                        {missing_html}
-                                    </div>
-                                    {f"<div style='font-size:12px;color:#A89F92;line-height:1.6;border-left:2px solid rgba(214,178,94,0.3);padding-left:10px;font-style:italic;'>{best_sent[:200]}...</div>" if best_sent else ""}
-                                    <div style='margin-top:8px;font-size:11px;color:#6B6560;'>
-                                        Resume ID: {row["Resume ID"]} &nbsp;·&nbsp; Skills: {row["skill_count"]}
-                                    </div>
-                                    """, unsafe_allow_html=True)
-
-                            # ── Score Breakdown: stacked bar chart for all results ──
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;'>Match Score Breakdown</div>", unsafe_allow_html=True)
-                            st.markdown("<div style='font-size:12px;color:#6B6560;margin-bottom:10px;'>60% Cosine · 20% Experience · 20% Skill Count — per candidate</div>", unsafe_allow_html=True)
-                            _cand_labels = [f"#{i+1} {row2['Category'][:12]}" for i, (_, row2) in enumerate(results.iterrows())]
-                            _cosine_comp = (scores[top_idx] * 60).round(1).tolist()
-                            _exp_norm    = results['Experience Years'].fillna(0)
-                            _exp_max     = max(_exp_norm.max(), 1)
-                            _exp_comp    = (_exp_norm / _exp_max * 20).round(1).tolist()
-                            _sk_norm     = results['skill_count'].fillna(0)
-                            _sk_max      = max(_sk_norm.max(), 1)
-                            _sk_comp     = (_sk_norm / _sk_max * 20).round(1).tolist()
-
-                            fig_break = go.Figure()
-                            fig_break.add_trace(go.Bar(
-                                y=_cand_labels, x=_cosine_comp, name='Cosine Match',
-                                orientation='h', marker_color='rgba(214,178,94,0.85)',
-                                hovertemplate='Cosine: %{x:.1f}%<extra></extra>',
-                            ))
-                            fig_break.add_trace(go.Bar(
-                                y=_cand_labels, x=_exp_comp, name='Experience',
-                                orientation='h', marker_color='rgba(140,122,91,0.7)',
-                                hovertemplate='Experience: %{x:.1f}%<extra></extra>',
-                            ))
-                            fig_break.add_trace(go.Bar(
-                                y=_cand_labels, x=_sk_comp, name='Skill Count',
-                                orientation='h', marker_color='rgba(168,159,146,0.6)',
-                                hovertemplate='Skills: %{x:.1f}%<extra></extra>',
-                            ))
-                            fig_break.update_layout(
-                                barmode='stack',
-                                paper_bgcolor='rgba(0,0,0,0)',
-                                plot_bgcolor='rgba(0,0,0,0)',
-                                font=dict(family='Inter', color='#A89F92', size=11),
-                                height=max(220, len(_cand_labels) * 32 + 60),
-                                margin=dict(l=10, r=10, t=10, b=10),
-                                legend=dict(orientation='h', y=-0.12, x=0.5, xanchor='center',
-                                            font=dict(size=10), bgcolor='rgba(0,0,0,0)'),
-                                xaxis=dict(gridcolor='rgba(214,178,94,0.08)', ticksuffix='%',
-                                           linecolor='rgba(214,178,94,0.1)', range=[0, 100]),
-                                yaxis=dict(gridcolor='rgba(0,0,0,0)', linecolor='rgba(214,178,94,0.1)'),
-                            )
-                            st.plotly_chart(fig_break, use_container_width=True, config={'displayModeBar': False})
-
-                            # ── Skill Coverage Heatmap ──
-                            if jd_required_skills:
-                                st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-top:16px;margin-bottom:4px;'>Skill Coverage Matrix</div>", unsafe_allow_html=True)
-                                st.markdown("<div style='font-size:12px;color:#6B6560;margin-bottom:10px;'>Which JD-required skills each top candidate has (✓) or lacks (✗)</div>", unsafe_allow_html=True)
-                                _heat_data = []
-                                for _, row3 in results.iterrows():
-                                    _cskills = " ".join(str(s).lower() for s in (row3.get('extracted_skills') or []))
-                                    _row_vals = [1 if sk in _cskills else 0 for sk in jd_required_skills]
-                                    _heat_data.append(_row_vals)
-                                _heat_text = [["✓" if v else "✗" for v in row_v] for row_v in _heat_data]
-                                fig_heat = go.Figure(data=go.Heatmap(
-                                    z=_heat_data,
-                                    x=jd_required_skills,
-                                    y=_cand_labels,
-                                    text=_heat_text,
-                                    texttemplate="%{text}",
-                                    textfont=dict(size=11),
-                                    colorscale=[[0, 'rgba(30,25,20,0.8)'], [1, 'rgba(214,178,94,0.55)']],
-                                    showscale=False,
-                                    hovertemplate='%{y} — %{x}: %{text}<extra></extra>',
+                                from collections import Counter
+                                tfidf_m     = models['tfidf_match']
+                                r_df        = active_df
+                                resume_vecs = tfidf_m.transform(r_df['clean_text'])
+                                jd_vec      = tfidf_m.transform([jd_text])
+                                scores      = cosine_similarity(jd_vec, resume_vecs).flatten()
+                                top_idx     = np.argsort(scores)[::-1][:top_n]
+                                results     = r_df.iloc[top_idx].copy()
+                                results['Match %'] = (scores[top_idx] * 100).round(1)
+    
+                                # Extract JD top keywords
+                                try:
+                                    feature_names = np.array(tfidf_m.get_feature_names_out())
+                                    jd_arr = jd_vec.toarray()[0]
+                                    jd_top_terms = set(feature_names[np.argsort(jd_arr)[::-1][:30]])
+                                except Exception:
+                                    jd_top_terms = set(jd_text.lower().split())
+    
+                                common_skills_vocab = ["python","java","sql","javascript","r","c++","machine learning",
+                                    "deep learning","tensorflow","pytorch","aws","azure","docker","kubernetes",
+                                    "git","linux","excel","tableau","power bi","spark","hadoop","react","node",
+                                    "django","flask","spring","nlp","computer vision","data analysis"]
+                                jd_lower = jd_text.lower()
+                                jd_required_skills = [s for s in common_skills_vocab if s in jd_lower]
+    
+                                export_cols = ['Resume ID','Category','Match %','Experience Years','skill_count']
+                                avail_cols = [c for c in export_cols if c in results.columns]
+                                export_df = results[avail_cols].reset_index(drop=True)
+                                export_csv = export_df.to_csv(index=False).encode('utf-8')
+                                st.download_button(
+                                    label="⬇ Export Shortlist (CSV)",
+                                    data=export_csv,
+                                    file_name="candidate_shortlist.csv",
+                                    mime="text/csv",
+                                    key="export_csv"
+                                )
+    
+                                for i, (_, row) in enumerate(results.iterrows()):
+                                    rank = i + 1
+                                    is_top = rank == 1
+    
+                                    candidate_text = str(row.get('clean_text',''))
+                                    cand_words = set(candidate_text.lower().split())
+                                    shared_kws = list(jd_top_terms & cand_words)[:5]
+    
+                                    cand_skills = [str(s).lower() for s in (row.get('extracted_skills') or [])]
+                                    missing_skills = [s for s in jd_required_skills if s not in " ".join(cand_skills)]
+    
+                                    sentences = [s.strip() for s in candidate_text.replace('\n',' ').split('.') if len(s.strip()) > 30]
+                                    best_sent = ""
+                                    best_ov = 0
+                                    for sent in sentences[:20]:
+                                        ov = sum(1 for w in jd_top_terms if w in sent.lower())
+                                        if ov > best_ov:
+                                            best_ov = ov
+                                            best_sent = sent
+    
+                                    shared_html = " ".join(f"<span style='background:rgba(214,178,94,0.12);color:#D6B25E;padding:2px 7px;border-radius:4px;font-size:10px;'>{k}</span>" for k in shared_kws) if shared_kws else "<span style='color:#6B6560;font-size:11px;'>—</span>"
+                                    missing_html = " ".join(f"<span style='border:1px solid rgba(140,122,91,0.4);color:#8C7A5B;padding:2px 7px;border-radius:4px;font-size:10px;'>{s}</span>" for s in missing_skills[:5]) if missing_skills else "<span style='color:#D6B25E;font-size:11px;'>✓ All key skills present</span>"
+    
+                                    with st.expander(f"#{rank}  {row['Category']}  ·  {row['Match %']:.1f}% match  ·  {row['Experience Years']}y exp", expanded=(rank==1)):
+                                        st.markdown(f"""
+                                        <div style='margin-bottom:10px;'>
+                                            <div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;margin-bottom:5px;'>Why This Match</div>
+                                            {shared_html}
+                                        </div>
+                                        <div style='margin-bottom:10px;'>
+                                            <div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;margin-bottom:5px;'>Skill Gap</div>
+                                            {missing_html}
+                                        </div>
+                                        {f"<div style='font-size:12px;color:#A89F92;line-height:1.6;border-left:2px solid rgba(214,178,94,0.3);padding-left:10px;font-style:italic;'>{best_sent[:200]}...</div>" if best_sent else ""}
+                                        <div style='margin-top:8px;font-size:11px;color:#6B6560;'>
+                                            Resume ID: {row["Resume ID"]} &nbsp;·&nbsp; Skills: {row["skill_count"]}
+                                        </div>
+                                        """, unsafe_allow_html=True)
+    
+                                # ── Score Breakdown: stacked bar chart for all results ──
+                                st.markdown("<br>", unsafe_allow_html=True)
+                                st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;'>Match Score Breakdown</div>", unsafe_allow_html=True)
+                                st.markdown("<div style='font-size:12px;color:#6B6560;margin-bottom:10px;'>60% Cosine · 20% Experience · 20% Skill Count — per candidate</div>", unsafe_allow_html=True)
+                                _cand_labels = [f"#{i+1} {row2['Category'][:12]}" for i, (_, row2) in enumerate(results.iterrows())]
+                                _cosine_comp = (scores[top_idx] * 60).round(1).tolist()
+                                _exp_norm    = results['Experience Years'].fillna(0)
+                                _exp_max     = max(_exp_norm.max(), 1)
+                                _exp_comp    = (_exp_norm / _exp_max * 20).round(1).tolist()
+                                _sk_norm     = results['skill_count'].fillna(0)
+                                _sk_max      = max(_sk_norm.max(), 1)
+                                _sk_comp     = (_sk_norm / _sk_max * 20).round(1).tolist()
+    
+                                fig_break = go.Figure()
+                                fig_break.add_trace(go.Bar(
+                                    y=_cand_labels, x=_cosine_comp, name='Cosine Match',
+                                    orientation='h', marker_color='rgba(214,178,94,0.85)',
+                                    hovertemplate='Cosine: %{x:.1f}%<extra></extra>',
                                 ))
-                                fig_heat.update_layout(
+                                fig_break.add_trace(go.Bar(
+                                    y=_cand_labels, x=_exp_comp, name='Experience',
+                                    orientation='h', marker_color='rgba(140,122,91,0.7)',
+                                    hovertemplate='Experience: %{x:.1f}%<extra></extra>',
+                                ))
+                                fig_break.add_trace(go.Bar(
+                                    y=_cand_labels, x=_sk_comp, name='Skill Count',
+                                    orientation='h', marker_color='rgba(168,159,146,0.6)',
+                                    hovertemplate='Skills: %{x:.1f}%<extra></extra>',
+                                ))
+                                fig_break.update_layout(
+                                    barmode='stack',
                                     paper_bgcolor='rgba(0,0,0,0)',
                                     plot_bgcolor='rgba(0,0,0,0)',
-                                    font=dict(family='Inter', color='#A89F92', size=10),
-                                    height=max(180, len(_cand_labels) * 30 + 80),
-                                    margin=dict(l=10, r=10, t=10, b=60),
-                                    xaxis=dict(tickangle=-35, side='bottom', tickfont=dict(size=9)),
-                                    yaxis=dict(tickfont=dict(size=10)),
-                                )
-                                st.plotly_chart(fig_heat, use_container_width=True, config={'displayModeBar': False})
-
-                            # ── Shortlist Manager ──
-                            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-top:16px;margin-bottom:8px;'>Shortlist Manager</div>", unsafe_allow_html=True)
-                            if 'shortlist' not in st.session_state:
-                                st.session_state.shortlist = []
-                            _sl_cols = st.columns(min(top_n, 4))
-                            for _si, (_, _sr) in enumerate(results.iterrows()):
-                                _col_idx = _si % 4
-                                with _sl_cols[_col_idx]:
-                                    _already = any(x.get('Resume ID') == str(_sr['Resume ID']) for x in st.session_state.shortlist)
-                                    if _already:
-                                        st.markdown(f"<div style='font-size:11px;padding:6px;background:rgba(214,178,94,0.08);border:1px solid rgba(214,178,94,0.3);border-radius:6px;color:#D6B25E;text-align:center;margin-bottom:6px;'>#{_si+1} ✓ Shortlisted</div>", unsafe_allow_html=True)
-                                    else:
-                                        if st.button(f"📌 #{_si+1} Add", key=f"sl_{_si}_{_sr['Resume ID']}"):
-                                            st.session_state.shortlist.append({
-                                                'Resume ID': str(_sr['Resume ID']),
-                                                'Rank': _si+1,
-                                                'Category': _sr['Category'],
-                                                'Match %': round(float(_sr['Match %']), 1),
-                                                'Experience': _sr.get('Experience Years', 0),
-                                                'Skills': _sr.get('skill_count', 0),
-                                            })
-                                            st.rerun()
-
-                            if st.session_state.shortlist:
-                                st.markdown(f"<div style='font-size:12px;color:#A89F92;margin-top:8px;margin-bottom:6px;'><b style='color:#D6B25E;'>{len(st.session_state.shortlist)}</b> candidate(s) in your shortlist</div>", unsafe_allow_html=True)
-                                _sl_df = pd.DataFrame(st.session_state.shortlist)
-                                st.dataframe(_sl_df, use_container_width=True, hide_index=True)
-                                _sl_c1, _sl_c2 = st.columns(2)
-                                with _sl_c1:
-                                    st.download_button(
-                                        label="⬇ Export Shortlist (CSV)",
-                                        data=_sl_df.to_csv(index=False).encode('utf-8'),
-                                        file_name="airecruit_shortlist.csv",
-                                        mime="text/csv",
-                                        key="sl_export"
-                                    )
-                                with _sl_c2:
-                                    if st.button("🗑 Clear Shortlist", key="sl_clear"):
-                                        st.session_state.shortlist = []
-                                        st.rerun()
-
-                            # ── Candidate Comparison ──
-                            _rec_sl = [x for x in st.session_state.get('shortlist', []) if x.get('Resume ID')]
-                            if len(_rec_sl) >= 2:
-                                st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-top:24px;margin-bottom:4px;'>Candidate Comparison</div>", unsafe_allow_html=True)
-                                st.markdown("<div style='font-size:12px;color:#6B6560;margin-bottom:12px;'>Select two shortlisted candidates to compare side-by-side.</div>", unsafe_allow_html=True)
-                                _cmp_opts = [f"#{c['Rank']} · {c['Category']} · {c['Match %']}%" for c in _rec_sl]
-                                _cc1, _cc2 = st.columns(2)
-                                with _cc1:
-                                    _sel_a = st.selectbox("Candidate A", _cmp_opts, index=0, key="cmp_a")
-                                with _cc2:
-                                    _sel_b = st.selectbox("Candidate B", _cmp_opts, index=min(1, len(_cmp_opts)-1), key="cmp_b")
-
-                                _ca = _rec_sl[_cmp_opts.index(_sel_a)]
-                                _cb = _rec_sl[_cmp_opts.index(_sel_b)]
-
-                                # Comparison table
-                                _rows = [
-                                    ("Role Category",  _ca['Category'],                _cb['Category']),
-                                    ("Match Score",    f"{_ca['Match %']}%",           f"{_cb['Match %']}%"),
-                                    ("Rank",           f"#{_ca['Rank']}",              f"#{_cb['Rank']}"),
-                                    ("Experience",     f"{_ca.get('Experience',0):.0f} yrs", f"{_cb.get('Experience',0):.0f} yrs"),
-                                    ("Skill Count",    str(int(_ca.get('Skills',0))),  str(int(_cb.get('Skills',0)))),
-                                ]
-                                _tbl_rows = ""
-                                for label, va, vb in _rows:
-                                    try:
-                                        _fa = float(str(va).replace('%','').replace(' yrs','').replace('#',''))
-                                        _fb = float(str(vb).replace('%','').replace(' yrs','').replace('#',''))
-                                        _win_a = 'color:#D6B25E;font-weight:700;' if _fa >= _fb else 'color:#A89F92;'
-                                        _win_b = 'color:#D6B25E;font-weight:700;' if _fb > _fa  else 'color:#A89F92;'
-                                    except Exception:
-                                        _win_a = _win_b = 'color:#A89F92;'
-                                    _tbl_rows += (
-                                        f"<tr>"
-                                        f"<td style='padding:8px 14px;font-size:12px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid rgba(214,178,94,0.06);'>{label}</td>"
-                                        f"<td style='padding:8px 14px;font-size:13px;{_win_a}text-align:center;border-bottom:1px solid rgba(214,178,94,0.06);'>{va}</td>"
-                                        f"<td style='padding:8px 14px;font-size:13px;{_win_b}text-align:center;border-bottom:1px solid rgba(214,178,94,0.06);'>{vb}</td>"
-                                        f"</tr>"
-                                    )
-                                st.markdown(f"""
-                                <table style='width:100%;border-collapse:collapse;background:rgba(255,255,255,0.02);border-radius:10px;overflow:hidden;'>
-                                    <thead>
-                                        <tr>
-                                            <th style='padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;text-align:left;border-bottom:1px solid rgba(214,178,94,0.15);'>Metric</th>
-                                            <th style='padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#D6B25E;text-align:center;border-bottom:1px solid rgba(214,178,94,0.15);'>{_sel_a.split(' · ')[0]}</th>
-                                            <th style='padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#D6B25E;text-align:center;border-bottom:1px solid rgba(214,178,94,0.15);'>{_sel_b.split(' · ')[0]}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>{_tbl_rows}</tbody>
-                                </table>
-                                """, unsafe_allow_html=True)
-
-                                # Radar overlay comparison
-                                _cmp_cats  = ["Match %", "Experience", "Skill Count"]
-                                _cmp_max   = [100, max(float(_ca.get('Experience',1)), float(_cb.get('Experience',1)), 1),
-                                              max(float(_ca.get('Skills',1)), float(_cb.get('Skills',1)), 1)]
-                                _vals_a = [
-                                    float(_ca['Match %']),
-                                    float(_ca.get('Experience',0)) / _cmp_max[1] * 100,
-                                    float(_ca.get('Skills',0))     / _cmp_max[2] * 100,
-                                ]
-                                _vals_b = [
-                                    float(_cb['Match %']),
-                                    float(_cb.get('Experience',0)) / _cmp_max[1] * 100,
-                                    float(_cb.get('Skills',0))     / _cmp_max[2] * 100,
-                                ]
-                                _cats_c = _cmp_cats + [_cmp_cats[0]]
-                                _va_c   = _vals_a + [_vals_a[0]]
-                                _vb_c   = _vals_b + [_vals_b[0]]
-                                fig_cmp = go.Figure()
-                                fig_cmp.add_trace(go.Scatterpolar(
-                                    r=_va_c, theta=_cats_c, fill='toself', name=_sel_a.split(' · ')[0],
-                                    fillcolor='rgba(214,178,94,0.15)', line=dict(color='#D6B25E', width=2),
-                                    marker=dict(color='#D6B25E', size=6),
-                                ))
-                                fig_cmp.add_trace(go.Scatterpolar(
-                                    r=_vb_c, theta=_cats_c, fill='toself', name=_sel_b.split(' · ')[0],
-                                    fillcolor='rgba(107,159,212,0.12)', line=dict(color='#6B9FD4', width=2),
-                                    marker=dict(color='#6B9FD4', size=6),
-                                ))
-                                fig_cmp.update_layout(
-                                    polar=dict(
-                                        bgcolor='rgba(0,0,0,0)',
-                                        radialaxis=dict(visible=True, range=[0,100], tickfont=dict(size=8, color='#6B6560'),
-                                                        gridcolor='rgba(214,178,94,0.1)', linecolor='rgba(214,178,94,0.1)', ticksuffix='%'),
-                                        angularaxis=dict(tickfont=dict(size=10, color='#A89F92'), gridcolor='rgba(214,178,94,0.1)'),
-                                    ),
-                                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                                    font=dict(family='Inter', color='#A89F92'), height=280,
-                                    margin=dict(l=30,r=30,t=20,b=30),
+                                    font=dict(family='Inter', color='#A89F92', size=11),
+                                    height=max(220, len(_cand_labels) * 32 + 60),
+                                    margin=dict(l=10, r=10, t=10, b=10),
                                     legend=dict(orientation='h', y=-0.12, x=0.5, xanchor='center',
                                                 font=dict(size=10), bgcolor='rgba(0,0,0,0)'),
+                                    xaxis=dict(gridcolor='rgba(214,178,94,0.08)', ticksuffix='%',
+                                               linecolor='rgba(214,178,94,0.1)', range=[0, 100]),
+                                    yaxis=dict(gridcolor='rgba(0,0,0,0)', linecolor='rgba(214,178,94,0.1)'),
                                 )
-                                st.plotly_chart(fig_cmp, use_container_width=True, config={'displayModeBar': False})
+                                st.plotly_chart(fig_break, use_container_width=True, config={'displayModeBar': False})
+    
+                                # ── Skill Coverage Heatmap ──
+                                if jd_required_skills:
+                                    st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-top:16px;margin-bottom:4px;'>Skill Coverage Matrix</div>", unsafe_allow_html=True)
+                                    st.markdown("<div style='font-size:12px;color:#6B6560;margin-bottom:10px;'>Which JD-required skills each top candidate has (✓) or lacks (✗)</div>", unsafe_allow_html=True)
+                                    _heat_data = []
+                                    for _, row3 in results.iterrows():
+                                        _cskills = " ".join(str(s).lower() for s in (row3.get('extracted_skills') or []))
+                                        _row_vals = [1 if sk in _cskills else 0 for sk in jd_required_skills]
+                                        _heat_data.append(_row_vals)
+                                    _heat_text = [["✓" if v else "✗" for v in row_v] for row_v in _heat_data]
+                                    fig_heat = go.Figure(data=go.Heatmap(
+                                        z=_heat_data,
+                                        x=jd_required_skills,
+                                        y=_cand_labels,
+                                        text=_heat_text,
+                                        texttemplate="%{text}",
+                                        textfont=dict(size=11),
+                                        colorscale=[[0, 'rgba(30,25,20,0.8)'], [1, 'rgba(214,178,94,0.55)']],
+                                        showscale=False,
+                                        hovertemplate='%{y} — %{x}: %{text}<extra></extra>',
+                                    ))
+                                    fig_heat.update_layout(
+                                        paper_bgcolor='rgba(0,0,0,0)',
+                                        plot_bgcolor='rgba(0,0,0,0)',
+                                        font=dict(family='Inter', color='#A89F92', size=10),
+                                        height=max(180, len(_cand_labels) * 30 + 80),
+                                        margin=dict(l=10, r=10, t=10, b=60),
+                                        xaxis=dict(tickangle=-35, side='bottom', tickfont=dict(size=9)),
+                                        yaxis=dict(tickfont=dict(size=10)),
+                                    )
+                                    st.plotly_chart(fig_heat, use_container_width=True, config={'displayModeBar': False})
+    
+                                # ── Shortlist Manager ──
+                                st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-top:16px;margin-bottom:8px;'>Shortlist Manager</div>", unsafe_allow_html=True)
+                                if 'shortlist' not in st.session_state:
+                                    st.session_state.shortlist = []
+                                _sl_cols = st.columns(min(top_n, 4))
+                                for _si, (_, _sr) in enumerate(results.iterrows()):
+                                    _col_idx = _si % 4
+                                    with _sl_cols[_col_idx]:
+                                        _already = any(x.get('Resume ID') == str(_sr['Resume ID']) for x in st.session_state.shortlist)
+                                        if _already:
+                                            st.markdown(f"<div style='font-size:11px;padding:6px;background:rgba(214,178,94,0.08);border:1px solid rgba(214,178,94,0.3);border-radius:6px;color:#D6B25E;text-align:center;margin-bottom:6px;'>#{_si+1} ✓ Shortlisted</div>", unsafe_allow_html=True)
+                                        else:
+                                            if st.button(f"📌 #{_si+1} Add", key=f"sl_{_si}_{_sr['Resume ID']}"):
+                                                st.session_state.shortlist.append({
+                                                    'Resume ID': str(_sr['Resume ID']),
+                                                    'Rank': _si+1,
+                                                    'Category': _sr['Category'],
+                                                    'Match %': round(float(_sr['Match %']), 1),
+                                                    'Experience': _sr.get('Experience Years', 0),
+                                                    'Skills': _sr.get('skill_count', 0),
+                                                })
+                                                st.rerun()
+    
+                                if st.session_state.shortlist:
+                                    st.markdown(f"<div style='font-size:12px;color:#A89F92;margin-top:8px;margin-bottom:6px;'><b style='color:#D6B25E;'>{len(st.session_state.shortlist)}</b> candidate(s) in your shortlist</div>", unsafe_allow_html=True)
+                                    _sl_df = pd.DataFrame(st.session_state.shortlist)
+                                    st.dataframe(_sl_df, use_container_width=True, hide_index=True)
+                                    _sl_c1, _sl_c2 = st.columns(2)
+                                    with _sl_c1:
+                                        st.download_button(
+                                            label="⬇ Export Shortlist (CSV)",
+                                            data=_sl_df.to_csv(index=False).encode('utf-8'),
+                                            file_name="airecruit_shortlist.csv",
+                                            mime="text/csv",
+                                            key="sl_export"
+                                        )
+                                    with _sl_c2:
+                                        if st.button("🗑 Clear Shortlist", key="sl_clear"):
+                                            st.session_state.shortlist = []
+                                            st.rerun()
+    
+                                # ── Candidate Comparison ──
+                                _rec_sl = [x for x in st.session_state.get('shortlist', []) if x.get('Resume ID')]
+                                if len(_rec_sl) >= 2:
+                                    st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-top:24px;margin-bottom:4px;'>Candidate Comparison</div>", unsafe_allow_html=True)
+                                    st.markdown("<div style='font-size:12px;color:#6B6560;margin-bottom:12px;'>Select two shortlisted candidates to compare side-by-side.</div>", unsafe_allow_html=True)
+                                    _cmp_opts = [f"#{c['Rank']} · {c['Category']} · {c['Match %']}%" for c in _rec_sl]
+                                    _cc1, _cc2 = st.columns(2)
+                                    with _cc1:
+                                        _sel_a = st.selectbox("Candidate A", _cmp_opts, index=0, key="cmp_a")
+                                    with _cc2:
+                                        _sel_b = st.selectbox("Candidate B", _cmp_opts, index=min(1, len(_cmp_opts)-1), key="cmp_b")
+    
+                                    _ca = _rec_sl[_cmp_opts.index(_sel_a)]
+                                    _cb = _rec_sl[_cmp_opts.index(_sel_b)]
+    
+                                    # Comparison table
+                                    _rows = [
+                                        ("Role Category",  _ca['Category'],                _cb['Category']),
+                                        ("Match Score",    f"{_ca['Match %']}%",           f"{_cb['Match %']}%"),
+                                        ("Rank",           f"#{_ca['Rank']}",              f"#{_cb['Rank']}"),
+                                        ("Experience",     f"{_ca.get('Experience',0):.0f} yrs", f"{_cb.get('Experience',0):.0f} yrs"),
+                                        ("Skill Count",    str(int(_ca.get('Skills',0))),  str(int(_cb.get('Skills',0)))),
+                                    ]
+                                    _tbl_rows = ""
+                                    for label, va, vb in _rows:
+                                        try:
+                                            _fa = float(str(va).replace('%','').replace(' yrs','').replace('#',''))
+                                            _fb = float(str(vb).replace('%','').replace(' yrs','').replace('#',''))
+                                            _win_a = 'color:#D6B25E;font-weight:700;' if _fa >= _fb else 'color:#A89F92;'
+                                            _win_b = 'color:#D6B25E;font-weight:700;' if _fb > _fa  else 'color:#A89F92;'
+                                        except Exception:
+                                            _win_a = _win_b = 'color:#A89F92;'
+                                        _tbl_rows += (
+                                            f"<tr>"
+                                            f"<td style='padding:8px 14px;font-size:12px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid rgba(214,178,94,0.06);'>{label}</td>"
+                                            f"<td style='padding:8px 14px;font-size:13px;{_win_a}text-align:center;border-bottom:1px solid rgba(214,178,94,0.06);'>{va}</td>"
+                                            f"<td style='padding:8px 14px;font-size:13px;{_win_b}text-align:center;border-bottom:1px solid rgba(214,178,94,0.06);'>{vb}</td>"
+                                            f"</tr>"
+                                        )
+                                    st.markdown(f"""
+                                    <table style='width:100%;border-collapse:collapse;background:rgba(255,255,255,0.02);border-radius:10px;overflow:hidden;'>
+                                        <thead>
+                                            <tr>
+                                                <th style='padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;text-align:left;border-bottom:1px solid rgba(214,178,94,0.15);'>Metric</th>
+                                                <th style='padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#D6B25E;text-align:center;border-bottom:1px solid rgba(214,178,94,0.15);'>{_sel_a.split(' · ')[0]}</th>
+                                                <th style='padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#D6B25E;text-align:center;border-bottom:1px solid rgba(214,178,94,0.15);'>{_sel_b.split(' · ')[0]}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>{_tbl_rows}</tbody>
+                                    </table>
+                                    """, unsafe_allow_html=True)
+    
+                                    # Radar overlay comparison
+                                    _cmp_cats  = ["Match %", "Experience", "Skill Count"]
+                                    _cmp_max   = [100, max(float(_ca.get('Experience',1)), float(_cb.get('Experience',1)), 1),
+                                                  max(float(_ca.get('Skills',1)), float(_cb.get('Skills',1)), 1)]
+                                    _vals_a = [
+                                        float(_ca['Match %']),
+                                        float(_ca.get('Experience',0)) / _cmp_max[1] * 100,
+                                        float(_ca.get('Skills',0))     / _cmp_max[2] * 100,
+                                    ]
+                                    _vals_b = [
+                                        float(_cb['Match %']),
+                                        float(_cb.get('Experience',0)) / _cmp_max[1] * 100,
+                                        float(_cb.get('Skills',0))     / _cmp_max[2] * 100,
+                                    ]
+                                    _cats_c = _cmp_cats + [_cmp_cats[0]]
+                                    _va_c   = _vals_a + [_vals_a[0]]
+                                    _vb_c   = _vals_b + [_vals_b[0]]
+                                    fig_cmp = go.Figure()
+                                    fig_cmp.add_trace(go.Scatterpolar(
+                                        r=_va_c, theta=_cats_c, fill='toself', name=_sel_a.split(' · ')[0],
+                                        fillcolor='rgba(214,178,94,0.15)', line=dict(color='#D6B25E', width=2),
+                                        marker=dict(color='#D6B25E', size=6),
+                                    ))
+                                    fig_cmp.add_trace(go.Scatterpolar(
+                                        r=_vb_c, theta=_cats_c, fill='toself', name=_sel_b.split(' · ')[0],
+                                        fillcolor='rgba(107,159,212,0.12)', line=dict(color='#6B9FD4', width=2),
+                                        marker=dict(color='#6B9FD4', size=6),
+                                    ))
+                                    fig_cmp.update_layout(
+                                        polar=dict(
+                                            bgcolor='rgba(0,0,0,0)',
+                                            radialaxis=dict(visible=True, range=[0,100], tickfont=dict(size=8, color='#6B6560'),
+                                                            gridcolor='rgba(214,178,94,0.1)', linecolor='rgba(214,178,94,0.1)', ticksuffix='%'),
+                                            angularaxis=dict(tickfont=dict(size=10, color='#A89F92'), gridcolor='rgba(214,178,94,0.1)'),
+                                        ),
+                                        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                                        font=dict(family='Inter', color='#A89F92'), height=280,
+                                        margin=dict(l=30,r=30,t=20,b=30),
+                                        legend=dict(orientation='h', y=-0.12, x=0.5, xanchor='center',
+                                                    font=dict(size=10), bgcolor='rgba(0,0,0,0)'),
+                                    )
+                                    st.plotly_chart(fig_cmp, use_container_width=True, config={'displayModeBar': False})
+    
+                                    # Winner declaration
+                                    _score_a = float(_ca['Match %']) + float(_ca.get('Experience',0))*2 + float(_ca.get('Skills',0))*1.5
+                                    _score_b = float(_cb['Match %']) + float(_cb.get('Experience',0))*2 + float(_cb.get('Skills',0))*1.5
+                                    _winner = _sel_a.split(' · ')[0] if _score_a >= _score_b else _sel_b.split(' · ')[0]
+                                    st.markdown(f"""
+                                    <div style='background:rgba(214,178,94,0.06);border:1px solid rgba(214,178,94,0.25);
+                                                border-radius:10px;padding:14px 18px;margin-top:12px;text-align:center;'>
+                                        <div style='font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:6px;'>Recommended Candidate</div>
+                                        <div style='font-size:18px;font-weight:700;color:#D6B25E;'>{_winner}</div>
+                                        <div style='font-size:11px;color:#6B6560;margin-top:4px;'>Based on composite match + experience + skill count</div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+    
+                            except Exception as e:
+                                st.error(f"Matching error: {e}")
+                else:
+                    st.markdown("""
+                    <div style='text-align:center;padding:80px 20px;'>
+                        <div style='font-family:Playfair Display,serif;font-size:0.95rem;
+                                    font-weight:600;color:#8C7A5B;margin-bottom:8px;'>Ready to Match</div>
+                        <div style='font-size:13px;color:#6B6560;'>Select a position and click Find Best Candidates</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-                                # Winner declaration
-                                _score_a = float(_ca['Match %']) + float(_ca.get('Experience',0))*2 + float(_ca.get('Skills',0))*1.5
-                                _score_b = float(_cb['Match %']) + float(_cb.get('Experience',0))*2 + float(_cb.get('Skills',0))*1.5
-                                _winner = _sel_a.split(' · ')[0] if _score_a >= _score_b else _sel_b.split(' · ')[0]
-                                st.markdown(f"""
-                                <div style='background:rgba(214,178,94,0.06);border:1px solid rgba(214,178,94,0.25);
-                                            border-radius:10px;padding:14px 18px;margin-top:12px;text-align:center;'>
-                                    <div style='font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:6px;'>Recommended Candidate</div>
-                                    <div style='font-size:18px;font-weight:700;color:#D6B25E;'>{_winner}</div>
-                                    <div style='font-size:11px;color:#6B6560;margin-top:4px;'>Based on composite match + experience + skill count</div>
-                                </div>
-                                """, unsafe_allow_html=True)
+    # ──────────────────────────────────────────────────────────
+    # TAB 2 · JD ANALYZER
+    # ──────────────────────────────────────────────────────────
+    with _rec_tab2:
+        st.markdown("""
+        <div style='margin-top:16px;margin-bottom:4px;'>
+            <div class='section-eyebrow'>Smart JD Intelligence</div>
+            <div style='font-size:13px;color:#A89F92;margin-top:6px;'>
+                Paste any job description to extract required skills, detect seniority level, estimate experience needs, and predict the role category — before you even run the matcher.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("<div class='section-rule'></div>", unsafe_allow_html=True)
 
-                        except Exception as e:
-                            st.error(f"Matching error: {e}")
+        import re as _re_jda
+        _jda_text = st.text_area("Paste Job Description", height=200,
+                                  placeholder="Paste the full job description here...",
+                                  key="jda_input", label_visibility="collapsed")
+
+        _jda_btn = st.button("Analyze JD  →", key="jda_run")
+
+        if _jda_btn and _jda_text.strip():
+            _jdl = _jda_text.lower()
+
+            # ── Skill categories ──
+            _skill_cats = {
+                "Programming": ["python","java","javascript","c++","c#","r","scala","go","ruby","swift","kotlin","php","typescript","matlab"],
+                "Database / SQL": ["sql","mysql","postgresql","mongodb","oracle","cassandra","redis","elasticsearch","sqlite","nosql","firebase"],
+                "Cloud / DevOps": ["aws","azure","gcp","docker","kubernetes","terraform","jenkins","ci/cd","linux","git","github","gitlab","heroku"],
+                "ML / AI": ["machine learning","deep learning","tensorflow","pytorch","scikit-learn","nlp","computer vision","keras","xgboost","data science","neural network","llm","generative ai"],
+                "BI / Analytics": ["tableau","power bi","excel","looker","qlik","matplotlib","seaborn","plotly","pandas","numpy","spark","hadoop","data analysis"],
+                "Soft Skills": ["communication","teamwork","leadership","problem solving","agile","scrum","project management","presentation"],
+            }
+            _detected = {cat: [s for s in skills if s in _jdl] for cat, skills in _skill_cats.items()}
+            _all_detected = [s for skills in _detected.values() for s in skills]
+
+            # ── Seniority detection ──
+            _senior_kws  = ["senior","sr.","lead","principal","staff","director","head of","vp","vice president","architect","manager","10+ years","8+ years"]
+            _mid_kws     = ["mid","mid-level","intermediate","3+ years","4+ years","5+ years","associate"]
+            _entry_kws   = ["junior","jr.","entry","fresher","0-2 years","1-2 years","graduate","intern","trainee","recent grad"]
+            if any(k in _jdl for k in _senior_kws):
+                _seniority = ("Senior / Lead", "#D6B25E")
+            elif any(k in _jdl for k in _mid_kws):
+                _seniority = ("Mid-Level", "#A89F92")
             else:
-                st.markdown("""
-                <div style='text-align:center;padding:80px 20px;'>
-                    <div style='font-family:Playfair Display,serif;font-size:0.95rem;
-                                font-weight:600;color:#8C7A5B;margin-bottom:8px;'>Ready to Match</div>
-                    <div style='font-size:13px;color:#6B6560;'>Select a position and click Find Best Candidates</div>
-                </div>
-                """, unsafe_allow_html=True)
+                _seniority = ("Entry / Junior", "#8C7A5B")
+
+            # ── Experience requirement ──
+            _exp_match = _re_jda.search(r'(\d+)\+?\s*(?:to\s*(\d+)\s*)?(?:year|yr)', _jdl)
+            if _exp_match:
+                _exp_req = f"{_exp_match.group(1)}{'–'+_exp_match.group(2) if _exp_match.group(2) else '+'} years"
+            else:
+                _exp_req = "Not specified"
+
+            # ── Role category prediction (keyword heuristics) ──
+            _role_kws = {
+                "Data Science": ["data science","machine learning","deep learning","nlp","ai","ml","neural","model","prediction","classification"],
+                "Python Developer": ["python","django","flask","fastapi","backend","api","microservice"],
+                "Java Developer": ["java","spring","hibernate","maven","gradle","j2ee","microservice"],
+                "Web Development": ["html","css","react","angular","vue","frontend","full stack","node","javascript"],
+                "Database Administrator": ["dba","database","sql","oracle","postgresql","mysql","schema","query optimization"],
+                "DevOps / Cloud": ["devops","aws","azure","gcp","docker","kubernetes","ci/cd","pipeline","terraform"],
+                "HR": ["hr","human resources","recruitment","talent","onboarding","payroll","employee relations"],
+                "Testing": ["qa","testing","selenium","test automation","manual testing","jira","defect"],
+                "Business Analyst": ["business analyst","requirements","brd","stakeholder","process improvement","uml"],
+                "Project Manager": ["project manager","pmp","agile","scrum","sprint","roadmap","deliverables"],
+            }
+            _role_scores = {role: sum(1 for k in kws if k in _jdl) for role, kws in _role_kws.items()}
+            _pred_role = max(_role_scores, key=_role_scores.get)
+            _pred_conf = min(100, round(_role_scores[_pred_role] / max(len(_role_kws[_pred_role]), 1) * 100))
+
+            # ── Keyword frequency chart ──
+            _stop = {'the','and','or','to','of','in','for','is','are','with','a','an','this','that',
+                     'will','be','you','we','our','your','have','has','on','at','by','as','from',
+                     'it','its','not','all','can','may','should','must','which','who','what','how',
+                     'job','role','work','team','company','looking','experience','candidate','position','required'}
+            _words = _re_jda.findall(r'[a-z]{4,}', _jdl)
+            _freq = {}
+            for w in _words:
+                if w not in _stop:
+                    _freq[w] = _freq.get(w, 0) + 1
+            _top15 = sorted(_freq.items(), key=lambda x: x[1], reverse=True)[:15]
+
+            # ── Display results ──
+            _c1, _c2, _c3 = st.columns(3)
+            with _c1:
+                st.markdown(f"""
+                <div class='glass-card-sm' style='text-align:center;'>
+                    <div style='font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:8px;'>Seniority Level</div>
+                    <div style='font-size:17px;font-weight:700;color:{_seniority[1]};'>{_seniority[0]}</div>
+                </div>""", unsafe_allow_html=True)
+            with _c2:
+                st.markdown(f"""
+                <div class='glass-card-sm' style='text-align:center;'>
+                    <div style='font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:8px;'>Experience Required</div>
+                    <div style='font-size:17px;font-weight:700;color:#D6B25E;'>{_exp_req}</div>
+                </div>""", unsafe_allow_html=True)
+            with _c3:
+                st.markdown(f"""
+                <div class='glass-card-sm' style='text-align:center;'>
+                    <div style='font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:8px;'>Predicted Role</div>
+                    <div style='font-size:15px;font-weight:700;color:#D6B25E;'>{_pred_role}</div>
+                    <div style='font-size:10px;color:#6B6560;margin-top:3px;'>{_pred_conf}% confidence</div>
+                </div>""", unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # Detected skills by category
+            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;'>Detected Skills by Category</div>", unsafe_allow_html=True)
+            _has_any = False
+            for _cat, _skills in _detected.items():
+                if _skills:
+                    _has_any = True
+                    _badges = " ".join(f"<span style='background:rgba(214,178,94,0.12);color:#D6B25E;padding:3px 10px;border-radius:4px;font-size:11px;margin:2px;display:inline-block;'>{s}</span>" for s in _skills)
+                    st.markdown(f"""
+                    <div style='margin-bottom:10px;'>
+                        <div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#8C7A5B;margin-bottom:5px;'>{_cat}</div>
+                        <div>{_badges}</div>
+                    </div>""", unsafe_allow_html=True)
+            if not _has_any:
+                st.markdown("<div style='font-size:13px;color:#6B6560;'>No common tech skills detected — try pasting a more detailed JD.</div>", unsafe_allow_html=True)
+
+            # Skill coverage summary
+            _total_skills = sum(len(v) for v in _detected.values())
+            st.markdown(f"""
+            <div style='background:rgba(214,178,94,0.05);border:1px solid rgba(214,178,94,0.2);border-radius:8px;
+                        padding:12px 16px;margin-top:4px;margin-bottom:16px;font-size:12px;color:#A89F92;'>
+                <b style='color:#D6B25E;'>{_total_skills}</b> tech skills detected across
+                <b style='color:#D6B25E;'>{sum(1 for v in _detected.values() if v)}</b> categories.
+                Use the <b style='color:#D6B25E;'>Live Matcher</b> tab to find the best candidates for this role.
+            </div>""", unsafe_allow_html=True)
+
+            # Keyword frequency chart
+            if _top15:
+                st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;'>JD Keyword Frequency</div>", unsafe_allow_html=True)
+                st.markdown("<div style='font-size:12px;color:#6B6560;margin-bottom:8px;'>Top 15 most frequent meaningful words in this job description</div>", unsafe_allow_html=True)
+                _kf_words = [w for w, _ in _top15]
+                _kf_counts = [c for _, c in _top15]
+                _kf_colors = ['rgba(214,178,94,0.85)' if w in _all_detected else 'rgba(140,122,91,0.5)' for w in _kf_words]
+                fig_kf = go.Figure(go.Bar(
+                    x=_kf_counts, y=_kf_words, orientation='h',
+                    marker_color=_kf_colors,
+                    hovertemplate='<b>%{y}</b>: %{x} occurrences<extra></extra>',
+                ))
+                fig_kf.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(family='Inter', color='#A89F92', size=11),
+                    height=360, margin=dict(l=10, r=10, t=10, b=10),
+                    xaxis=dict(gridcolor='rgba(214,178,94,0.08)', linecolor='rgba(214,178,94,0.1)', title='Occurrences'),
+                    yaxis=dict(autorange='reversed', gridcolor='rgba(0,0,0,0)', linecolor='rgba(214,178,94,0.1)'),
+                )
+                st.plotly_chart(fig_kf, use_container_width=True, config={'displayModeBar': False})
+                st.markdown("<div style='font-size:10px;color:#6B6560;margin-top:-8px;'><span style='color:#D6B25E;'>■</span> Gold = detected skill keyword &nbsp; <span style='color:#8C7A5B;'>■</span> Grey = general keyword</div>", unsafe_allow_html=True)
+
+        elif _jda_btn:
+            st.warning("Please paste a job description first.")
+        else:
+            st.markdown("""
+            <div style='text-align:center;padding:60px 20px;'>
+                <div style='font-family:Playfair Display,serif;font-size:0.95rem;font-weight:600;color:#8C7A5B;margin-bottom:8px;'>JD Analyzer Ready</div>
+                <div style='font-size:13px;color:#6B6560;'>Paste a job description above and click Analyze JD</div>
+            </div>""", unsafe_allow_html=True)
+
+    # ──────────────────────────────────────────────────────────
+    # TAB 3 · SALARY ESTIMATOR
+    # ──────────────────────────────────────────────────────────
+    with _rec_tab3:
+        st.markdown("""
+        <div style='margin-top:16px;margin-bottom:4px;'>
+            <div class='section-eyebrow'>Market Salary Intelligence</div>
+            <div style='font-size:13px;color:#A89F92;margin-top:6px;'>
+                Estimate a competitive salary range based on role, experience, and skill set — for both Pakistan and international markets.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("<div class='section-rule'></div>", unsafe_allow_html=True)
+
+        _sal_roles = [
+            "Data Scientist", "Machine Learning Engineer", "Python Developer",
+            "Java Developer", "Web Developer (Full Stack)", "Frontend Developer",
+            "Backend Developer", "Database Administrator", "DevOps / Cloud Engineer",
+            "Business Analyst", "QA / Test Engineer", "HR Specialist",
+            "Project Manager", "Data Analyst", "Software Engineer (General)",
+        ]
+        _sal_pkg = {
+            "Data Scientist":              [(60,100),(120,200),(220,380),(380,600)],
+            "Machine Learning Engineer":   [(70,110),(130,210),(230,400),(400,650)],
+            "Python Developer":            [(55,95), (110,190),(200,350),(340,580)],
+            "Java Developer":              [(50,90), (100,180),(190,340),(320,550)],
+            "Web Developer (Full Stack)":  [(45,85), (90,160),(170,300),(290,480)],
+            "Frontend Developer":          [(40,75), (80,145),(155,280),(270,440)],
+            "Backend Developer":           [(50,90), (100,175),(185,330),(310,510)],
+            "Database Administrator":      [(55,95), (105,180),(190,340),(320,530)],
+            "DevOps / Cloud Engineer":     [(65,105),(125,205),(215,375),(370,600)],
+            "Business Analyst":            [(45,80), (90,160),(165,290),(280,460)],
+            "QA / Test Engineer":          [(40,72), (80,145),(150,265),(250,410)],
+            "HR Specialist":               [(35,65), (70,125),(130,230),(220,360)],
+            "Project Manager":             [(50,90), (100,175),(185,330),(310,510)],
+            "Data Analyst":                [(45,80), (90,160),(165,290),(270,440)],
+            "Software Engineer (General)": [(45,85), (95,170),(180,320),(300,490)],
+        }
+        _sal_usd = {
+            "Data Scientist":              [(40,70),(65,100),(90,140),(130,200)],
+            "Machine Learning Engineer":   [(45,75),(70,110),(95,155),(140,220)],
+            "Python Developer":            [(35,60),(55,90),(80,130),(115,185)],
+            "Java Developer":              [(30,58),(52,88),(75,125),(110,175)],
+            "Web Developer (Full Stack)":  [(28,52),(48,80),(70,115),(100,165)],
+            "Frontend Developer":          [(25,48),(42,72),(65,105),(95,150)],
+            "Backend Developer":           [(32,58),(55,88),(78,120),(110,175)],
+            "Database Administrator":      [(35,60),(58,92),(82,128),(115,180)],
+            "DevOps / Cloud Engineer":     [(40,68),(65,100),(90,145),(130,210)],
+            "Business Analyst":            [(28,50),(48,78),(68,110),(98,158)],
+            "QA / Test Engineer":          [(25,46),(44,72),(62,100),(92,148)],
+            "HR Specialist":               [(22,42),(38,62),(55,90),(82,130)],
+            "Project Manager":             [(32,58),(55,88),(78,122),(112,178)],
+            "Data Analyst":                [(28,50),(48,78),(68,108),(98,158)],
+            "Software Engineer (General)": [(28,52),(50,82),(72,115),(105,168)],
+        }
+        _sal_tiers = ["Entry (0–2 yrs)", "Mid-Level (3–5 yrs)", "Senior (6–10 yrs)", "Lead / Expert (10+ yrs)"]
+
+        _sc1, _sc2 = st.columns([1, 1])
+        with _sc1:
+            _sel_role = st.selectbox("Role Category", _sal_roles, key="sal_role")
+            _sel_tier_idx = st.select_slider("Experience Tier", options=range(4),
+                                              format_func=lambda i: _sal_tiers[i], key="sal_tier")
+        with _sc2:
+            _sel_edu = st.selectbox("Education Level", ["High School / Diploma", "Bachelor's Degree", "Master's Degree", "PhD"], index=1, key="sal_edu")
+            _sel_skills = st.multiselect(
+                "Bonus Skills (select all that apply)",
+                ["Cloud Certified (AWS/Azure/GCP)", "Published Research", "ML Frameworks (TF/PyTorch)",
+                 "5+ yrs same domain", "Open Source Contributions", "MBA / PMP Certification",
+                 "Leadership / Team Lead experience", "International Work Experience"],
+                key="sal_skills"
+            )
+
+        _sal_btn = st.button("Estimate Salary Range  →", key="sal_run")
+
+        if _sal_btn:
+            _pkr_lo, _pkr_hi = _sal_pkg[_sel_role][_sel_tier_idx]
+            _usd_lo, _usd_hi = _sal_usd[_sel_role][_sel_tier_idx]
+
+            # Education bonus
+            _edu_mult = {"High School / Diploma": 0.90, "Bachelor's Degree": 1.00, "Master's Degree": 1.10, "PhD": 1.18}
+            _mult = _edu_mult[_sel_edu]
+
+            # Skills bonus (each skill adds ~3%)
+            _skill_bonus = 1 + len(_sel_skills) * 0.03
+            _final_mult = _mult * _skill_bonus
+
+            _pkr_lo_f = int(_pkr_lo * _final_mult)
+            _pkr_hi_f = int(_pkr_hi * _final_mult)
+            _usd_lo_f = int(_usd_lo * _final_mult)
+            _usd_hi_f = int(_usd_hi * _final_mult)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            _r1, _r2 = st.columns(2)
+            with _r1:
+                st.markdown(f"""
+                <div style='background:rgba(214,178,94,0.06);border:1px solid rgba(214,178,94,0.3);
+                            border-radius:12px;padding:20px 24px;text-align:center;'>
+                    <div style='font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:10px;'>Pakistan Market (PKR / Month)</div>
+                    <div style='font-size:26px;font-weight:700;color:#D6B25E;'>
+                        {_pkr_lo_f:,} – {_pkr_hi_f:,}
+                    </div>
+                    <div style='font-size:11px;color:#6B6560;margin-top:5px;'>PKR per month</div>
+                </div>""", unsafe_allow_html=True)
+            with _r2:
+                st.markdown(f"""
+                <div style='background:rgba(107,159,212,0.06);border:1px solid rgba(107,159,212,0.3);
+                            border-radius:12px;padding:20px 24px;text-align:center;'>
+                    <div style='font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:10px;'>International Market (USD / Month)</div>
+                    <div style='font-size:26px;font-weight:700;color:#6B9FD4;'>
+                        ${_usd_lo_f:,} – ${_usd_hi_f:,}
+                    </div>
+                    <div style='font-size:11px;color:#6B6560;margin-top:5px;'>USD per month</div>
+                </div>""", unsafe_allow_html=True)
+
+            # Breakdown factors
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;'>Estimation Factors</div>", unsafe_allow_html=True)
+            _factors = [
+                ("Role", _sel_role, "Base salary band for this category"),
+                ("Experience Tier", _sal_tiers[_sel_tier_idx], f"Tier multiplier applied to base"),
+                ("Education", _sel_edu, f"{int((_mult-1)*100):+d}% adjustment"),
+                ("Bonus Skills", f"{len(_sel_skills)} selected", f"+{int((_skill_bonus-1)*100)}% skill premium"),
+                ("Total Adjustment", "", f"×{_final_mult:.2f} vs base band"),
+            ]
+            _frows = ""
+            for label, val, note in _factors:
+                _frows += (
+                    f"<tr>"
+                    f"<td style='padding:7px 14px;font-size:11px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;"
+                    f"border-bottom:1px solid rgba(214,178,94,0.06);'>{label}</td>"
+                    f"<td style='padding:7px 14px;font-size:12px;color:#D6B25E;border-bottom:1px solid rgba(214,178,94,0.06);'>{val}</td>"
+                    f"<td style='padding:7px 14px;font-size:11px;color:#8C7A5B;border-bottom:1px solid rgba(214,178,94,0.06);'>{note}</td>"
+                    f"</tr>"
+                )
+            st.markdown(f"""
+            <table style='width:100%;border-collapse:collapse;background:rgba(255,255,255,0.02);border-radius:8px;overflow:hidden;'>
+                <thead><tr>
+                    <th style='padding:9px 14px;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#6B6560;text-align:left;border-bottom:1px solid rgba(214,178,94,0.1);'>Factor</th>
+                    <th style='padding:9px 14px;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#6B6560;text-align:left;border-bottom:1px solid rgba(214,178,94,0.1);'>Value</th>
+                    <th style='padding:9px 14px;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#6B6560;text-align:left;border-bottom:1px solid rgba(214,178,94,0.1);'>Note</th>
+                </tr></thead>
+                <tbody>{_frows}</tbody>
+            </table>""", unsafe_allow_html=True)
+
+            st.markdown("""
+            <div style='margin-top:14px;font-size:11px;color:#6B6560;border-left:2px solid rgba(214,178,94,0.3);padding-left:10px;'>
+                Estimates are based on Pakistan market data (2024–2025) and indicative international benchmarks.
+                Actual offers vary by company size, city, and negotiation.
+            </div>""", unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

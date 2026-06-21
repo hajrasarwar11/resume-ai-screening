@@ -8,7 +8,7 @@
 
 **Run command:** `streamlit run app.py` (port 5000)
 
-**Main file:** `app.py` (~3,800 lines) — single-file Streamlit app containing all pages, CSS, JS patches, and ML logic.
+**Main file:** `app.py` (~4,100 lines) — single-file Streamlit app containing all pages, CSS, JS patches, and ML logic.
 
 ---
 
@@ -20,10 +20,10 @@ The app has 8 pages navigated via sidebar radio:
 |---|---|
 | 🏠 Home | Overview stats, feature cards, system status |
 | 🧠 Resume Intelligence | Single Screener · Batch Upload · CV Compare · History · Shortlist |
-| 💼 Recommendation Engine | JD matcher · Score breakdown · Skill Coverage Matrix · Shortlist Manager · Candidate Comparison |
+| 💼 Recommendation Engine | 3-tab interface: Live Matcher · JD Analyzer · Salary Estimator |
 | 📊 Candidate Analytics | Category distribution · Skill analysis · Live session · Candidate Lookup |
 | 🔬 Workflow | 8-stage pipeline timeline with detail cards |
-| ⚙️ ML Models | Model comparison · Hyperparameter Tuning · Feature Importance · Leaderboard |
+| ⚙️ ML Models | Model comparison · Hyperparameter Tuning · Feature Importance · Leaderboard · Live Predictor |
 | 📈 Performance Metrics | Validation results · Confusion matrices · ROC curves |
 | 👥 About | Team, supervisor, project info |
 
@@ -44,17 +44,16 @@ All in `models/` directory:
 
 ---
 
-## Recent Features Added
+## Features Added (Current Version)
 
 - **Candidate Fit Score Radar** — 5-dimension radar (Confidence, ATS Readiness, Skill Coverage, Resume Depth, Role Certainty) in Single Screener
 - **Export HTML Report** — Downloadable styled candidate report from Single Screener
 - **Model Agreement Heatmap** — In Live Predictor (ML Models page)
 - **RF model** — Random Forest now loaded and participates in Live Predictor, Leaderboard, Model Comparison
-- **Recommendation Engine enrichment:**
-  - Match Score Breakdown (stacked bar: cosine / experience / skills)
-  - Skill Coverage Matrix (heatmap: JD skills × top candidates)
-  - Shortlist Manager (add, view, export, clear)
-  - Candidate Comparison (side-by-side table + radar overlay + winner declaration)
+- **Recommendation Engine — 3-tab restructure:**
+  - Tab 1 (Live Matcher): Match Score Breakdown chart · Skill Coverage Matrix heatmap · Shortlist Manager · Candidate Comparison (side-by-side table + radar overlay + winner declaration)
+  - Tab 2 (JD Analyzer): Skill detection by category · Seniority detection · Experience extraction · Role category prediction · JD Keyword Frequency chart
+  - Tab 3 (Salary Estimator): PKR + USD salary range by role/experience/education/skills · Estimation factors table
 
 ---
 
@@ -62,10 +61,12 @@ All in `models/` directory:
 
 - All global CSS in one `st.markdown("""<style>...</style>""", unsafe_allow_html=True)` block (~800 lines)
 - Theme: Dark Gold Luxury (`#0B0D10` background, `#D6B25E` gold accent)
-- Sidebar JS patch via `streamlit.components.v1.html(...)` at startup:
-  - Changes `«»` icons on collapse/expand buttons
-  - **Moves `[data-testid="collapsedControl"]` to `document.body`** (escapes sidebar transform container) so the `»` expand button stays visible when sidebar is collapsed
-  - Runs every 200ms + MutationObserver
+- **Sidebar proxy button fix** via `streamlit.components.v1.html(...)` at startup:
+  - Creates `<button id="_airecruit_sb_proxy">` directly on `document.body` (outside React VDOM)
+  - Proxy delegates click to the real hidden `[data-testid="collapsedControl"]` element
+  - Since the proxy is NOT in React's component tree, VDOM reconciliation can never remove it
+  - Polls every 150ms + MutationObserver for immediate response
+  - Also styles the `«` collapse button inside the sidebar
 
 ---
 

@@ -30,15 +30,17 @@
 | 🔍 **Single Screener** | Paste or upload a resume → instant role prediction, ATS score, top-5 probabilities, Candidate Fit Score radar chart, and downloadable HTML report |
 | 📦 **Batch Upload** | Screen multiple PDF resumes simultaneously, ranked by confidence score |
 | 🔄 **CV Compare** | Side-by-side comparison of two candidates with a winner declaration and skill diff |
-| 💼 **Recommendation Engine** | Match any job description against 2,400+ resumes using cosine similarity + composite ranking |
+| 🎯 **Live Matcher** | Match any job description against 2,400+ resumes using cosine similarity + composite ranking (60% cosine + 20% experience + 20% skills) |
 | 📊 **Score Breakdown Chart** | Per-candidate stacked bar showing cosine match / experience / skill count components |
 | 🗺️ **Skill Coverage Matrix** | Heatmap: which JD-required skills each top candidate has (✓) or lacks (✗) |
 | 📌 **Shortlist Manager** | Pin candidates from results, view live shortlist table, export CSV |
 | ⚖️ **Candidate Comparison** | Select 2 shortlisted candidates for side-by-side table + radar overlay + winner declaration |
+| 🔍 **JD Analyzer** | Paste any JD → detect skills by category, seniority level, experience requirement, role prediction + keyword frequency chart |
+| 💰 **Salary Estimator** | Choose role + experience + education + skills → estimated PKR & USD monthly salary range with factor breakdown |
 | 📊 **Candidate Analytics** | Category distribution, skill frequency, experience histograms, radar profiles |
 | 🔴 **Live Session Tracking** | Real-time dashboard of all resumes screened in the current session |
 | 🔍 **Candidate Lookup** | Search the full 2,400+ candidate pool by skill keyword or role category |
-| 🎯 **ML Live Predictor** | Run all 5 classifiers simultaneously on any text — live confidence gauges + model agreement heatmap |
+| 🎯 **ML Live Predictor** | Run all 4 classifiers simultaneously on any text — live confidence gauges + model agreement heatmap |
 | 📊 **ML Models Explorer** | Grouped metric comparison, accuracy ranking, hyperparameter config, feature importance |
 | 🏆 **Performance Leaderboard** | Ranked model cards with per-metric mini-bars + consensus radar chart |
 
