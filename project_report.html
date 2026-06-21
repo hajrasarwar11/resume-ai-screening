@@ -698,6 +698,7 @@
     <a href="#recommendation">Recommendation Engine</a>
     <a href="#ranking">Candidate Ranking</a>
     <a href="#application">Web Application</a>
+    <a href="#platform-guide">Platform Guide</a>
     <a href="#deployment">Deployment</a>
     <a href="#tech-stack">Tech Stack</a>
     <a href="#team">Development Team</a>
@@ -1516,9 +1517,191 @@
     </ul>
   </div>
 
+  <!-- ── PLATFORM GUIDE ── -->
+  <div class="section" id="platform-guide">
+    <div class="section-eyebrow">Section 11.5 · Platform Documentation</div>
+    <h2>Platform User Guide</h2>
+    <div class="section-rule"></div>
+
+    <p>
+      This section documents the complete end-to-end process flow of the AIRECRUIT platform —
+      how a resume enters the system, what happens to it at each stage, where the output goes,
+      and how users can search and filter the candidate pool.
+    </p>
+
+    <!-- End-to-End Pipeline Diagram -->
+    <h3>End-to-End Process Flow</h3>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:32px;margin:20px 0;font-family:'SF Mono','Fira Code',monospace;font-size:12.5px;line-height:2;color:rgba(240,237,230,0.6);">
+      <div style="margin-bottom:24px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:12px;font-family:'Inter',sans-serif;font-weight:600;">Path A — Resume Classification</div>
+        <div style="color:rgba(240,237,230,0.5);">Raw Resume Text (paste or PDF upload)</div>
+        <div style="color:var(--gold2);">  └──▶ Text Cleaning &amp; Normalisation (regex · lowercase · stop-words removed)</div>
+        <div style="color:var(--gold2);">  └──▶ Feature Extraction</div>
+        <div style="padding-left:32px;color:rgba(240,237,230,0.4);">· Experience Years    → regex: finds "N year/yr"</div>
+        <div style="padding-left:32px;color:rgba(240,237,230,0.4);">· Skill Count         → match against 45-term vocab list</div>
+        <div style="padding-left:32px;color:rgba(240,237,230,0.4);">· Education Level     → PhD=3, Master=2, Bachelor=1, HS=0</div>
+        <div style="color:var(--gold2);">  └──▶ TF-IDF Vectorisation (max_features=3,000)</div>
+        <div style="color:var(--gold2);">  └──▶ ColumnTransformer → [TF-IDF | Experience | Skills | Education]</div>
+        <div style="color:var(--gold2);">  └──▶ ML Model Prediction</div>
+        <div style="padding-left:32px;color:rgba(240,237,230,0.4);">· SVM (98.75%)  · LR (99.22%)  · XGBoost (97.35%)</div>
+        <div style="color:var(--gold);font-weight:600;">  └──▶ OUTPUT: Role Label + Confidence % + ATS Score % + Top-5 Probabilities</div>
+      </div>
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:12px;font-family:'Inter',sans-serif;font-weight:600;">Path B — Candidate-Job Matching</div>
+        <div style="color:rgba(240,237,230,0.5);">Job Description Text (paste or sample preset)</div>
+        <div style="color:var(--gold2);">  └──▶ TF-IDF Vectorisation (max_features=5,000 — shared vocabulary)</div>
+        <div style="color:var(--gold2);">  └──▶ Cosine Similarity vs 2,400+ pre-indexed resume vectors</div>
+        <div style="color:var(--gold2);">  └──▶ Optional Category Filter (narrow to specific role)</div>
+        <div style="color:var(--gold2);">  └──▶ Composite Score = 60% Match + 20% Experience + 20% Skills</div>
+        <div style="color:var(--gold);font-weight:600;">  └──▶ OUTPUT: Ranked Candidate Shortlist with Match %, shared keywords, missing skills</div>
+      </div>
+    </div>
+
+    <!-- Where Output Goes -->
+    <h3>Where Does Output Go?</h3>
+    <p>Every resume screened through the platform flows into multiple downstream destinations automatically:</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0;">
+      <div style="background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:22px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:12px;font-weight:600;">Session History</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.7;">Every screened resume is saved to the in-session history log, accessible under <strong style="color:var(--text);">Resume Intelligence → History</strong> tab. Stores: predicted role, confidence %, ATS score, skills detected, model used, timestamp.</p>
+      </div>
+      <div style="background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:22px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:12px;font-weight:600;">Live Session Analytics</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.7;">All session candidates automatically appear in <strong style="color:var(--text);">Candidate Analytics → 🔴 Live Session</strong> tab, showing live role distribution charts, Confidence vs ATS scatter plots, and a running candidate log.</p>
+      </div>
+      <div style="background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:22px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:12px;font-weight:600;">Shortlist &amp; Export</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.7;">Click <strong style="color:var(--text);">📌 Add to Shortlist</strong> on any result card to pin a candidate. Shortlisted candidates can be annotated with recruiter notes and exported as a structured CSV from the History tab.</p>
+      </div>
+      <div style="background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:22px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:12px;font-weight:600;">Cross-Page Navigation</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.7;"><strong style="color:var(--text);">🔍 Find Similar →</strong> button sends a screened resume as a query to the Recommendation Engine. <strong style="color:var(--text);">🚀 Search Full Pool</strong> sends any job description directly to the Recommendation Engine.</p>
+      </div>
+    </div>
+
+    <!-- How to Search -->
+    <h3>How to Search the Candidate Pool</h3>
+    <p>AIRECRUIT offers three distinct search mechanisms, each optimised for a different use case:</p>
+
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border);">
+          <th style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);padding:10px 16px;text-align:left;font-weight:600;">Method</th>
+          <th style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);padding:10px 16px;text-align:left;font-weight:600;">Where</th>
+          <th style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);padding:10px 16px;text-align:left;font-weight:600;">How It Works</th>
+          <th style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);padding:10px 16px;text-align:left;font-weight:600;">Best For</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid rgba(214,178,94,0.07);">
+          <td style="padding:13px 16px;color:var(--text);font-weight:600;">Semantic JD Matching</td>
+          <td style="padding:13px 16px;color:var(--text2);">Recommendation Engine</td>
+          <td style="padding:13px 16px;color:var(--text2);">TF-IDF cosine similarity compares JD vector vs entire resume corpus. Returns ranked list with match % and shared keywords.</td>
+          <td style="padding:13px 16px;color:var(--text2);">Finding the most relevant candidates for a specific job posting</td>
+        </tr>
+        <tr style="border-bottom:1px solid rgba(214,178,94,0.07);">
+          <td style="padding:13px 16px;color:var(--text);font-weight:600;">Skill Keyword Search</td>
+          <td style="padding:13px 16px;color:var(--text2);">Candidate Analytics → Candidate Lookup</td>
+          <td style="padding:13px 16px;color:var(--text2);">Filter the 2,400+ dataset by skill keyword (e.g. "Python") and/or role category. Results show candidate profiles with experience and education.</td>
+          <td style="padding:13px 16px;color:var(--text2);">Exploring candidates with a specific technical skill</td>
+        </tr>
+        <tr style="border-bottom:1px solid rgba(214,178,94,0.07);">
+          <td style="padding:13px 16px;color:var(--text);font-weight:600;">Dataset Filters</td>
+          <td style="padding:13px 16px;color:var(--text2);">Candidate Analytics → Filter Dataset</td>
+          <td style="padding:13px 16px;color:var(--text2);">Multi-select category filter + experience years slider + skill keyword. Updates all charts dynamically. Shows count of matching candidates.</td>
+          <td style="padding:13px 16px;color:var(--text2);">Demographic analysis and dataset exploration</td>
+        </tr>
+        <tr>
+          <td style="padding:13px 16px;color:var(--text);font-weight:600;">Resume Intelligence Search</td>
+          <td style="padding:13px 16px;color:var(--text2);">Resume Intelligence → Single Screener</td>
+          <td style="padding:13px 16px;color:var(--text2);">Paste any resume text and run classification — then use "Find Similar →" to instantly search the full pool for candidates matching the same profile.</td>
+          <td style="padding:13px 16px;color:var(--text2);">Finding candidates similar to an existing strong applicant</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Navigation Pages Description -->
+    <h3>Navigation Pages — Detailed Description</h3>
+
+    <div class="app-page-list">
+      <div class="app-page-item">
+        <div class="app-page-icon">🏠</div>
+        <div>
+          <div class="app-page-title">Home</div>
+          <div class="app-page-desc">Hero landing page with system-wide statistics (models loaded, dataset status, total resumes), platform workflow overview, and quick-action buttons to begin screening.</div>
+        </div>
+      </div>
+      <div class="app-page-item">
+        <div class="app-page-icon">🔬</div>
+        <div>
+          <div class="app-page-title">Workflow</div>
+          <div class="app-page-desc">Visual documentation of the full ML pipeline — from raw text ingestion through NLP processing, feature engineering, TF-IDF vectorisation, model prediction, and output generation. Step-by-step interactive cards.</div>
+        </div>
+      </div>
+      <div class="app-page-item">
+        <div class="app-page-icon">🧠</div>
+        <div>
+          <div class="app-page-title">Resume Intelligence</div>
+          <div class="app-page-desc">Core screening hub with four tabs: (1) NLP Pipeline — visualises text cleaning steps in real-time; (2) Single Screener — classify one resume; (3) Batch Upload — screen multiple PDFs; (4) CV Compare — head-to-head candidate comparison; (5) History — full session log with export and shortlist management.</div>
+        </div>
+      </div>
+      <div class="app-page-item">
+        <div class="app-page-icon">💼</div>
+        <div>
+          <div class="app-page-title">Recommendation Engine</div>
+          <div class="app-page-desc">JD-to-candidate semantic matching using cosine similarity. Input a job description, optionally filter by role category, and receive a composite-ranked shortlist of the most relevant candidates from the 2,400+ dataset, each with match %, shared keywords, and missing skills.</div>
+        </div>
+      </div>
+      <div class="app-page-item">
+        <div class="app-page-icon">⚙️</div>
+        <div>
+          <div class="app-page-title">ML Models</div>
+          <div class="app-page-desc">Detailed model cards for SVM, Logistic Regression, XGBoost, and K-Means. Displays accuracy, F1, ROC-AUC, training parameters, hyperparameter configurations, and model-specific strengths and weaknesses.</div>
+        </div>
+      </div>
+      <div class="app-page-item">
+        <div class="app-page-icon">📊</div>
+        <div>
+          <div class="app-page-title">Candidate Analytics</div>
+          <div class="app-page-desc">Five-tab analytics dashboard: (1) Category Distribution — horizontal bar chart of resume counts per role; (2) Skill Analysis — experience histogram, education pie chart, top-skill frequency; (3) Radar Profile — multi-axis comparison of top role categories; (4) 🔴 Live Session — real-time dashboard of all resumes screened this session; (5) 🔍 Candidate Lookup — search the full dataset by skill keyword or role category.</div>
+        </div>
+      </div>
+      <div class="app-page-item">
+        <div class="app-page-icon">📈</div>
+        <div>
+          <div class="app-page-title">Performance Metrics</div>
+          <div class="app-page-desc">Full model evaluation suite: accuracy comparison bar chart, classification reports, ROC-AUC curves, confusion matrices, and K-Means clustering analysis with Elbow Method, Silhouette Score, and Davies-Bouldin Index.</div>
+        </div>
+      </div>
+      <div class="app-page-item">
+        <div class="app-page-icon">👥</div>
+        <div>
+          <div class="app-page-title">About</div>
+          <div class="app-page-desc">Team profiles, project background, academic context, and technology acknowledgements.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live App Link -->
+    <h3>Live Application</h3>
+    <div style="background:rgba(214,178,94,0.05);border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:0 12px 12px 0;padding:22px 28px;margin:20px 0;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:8px;font-weight:600;">Deployed Application</div>
+      <a href="https://resume-ai-screening-mynrd3qwpwnijtjrzhhhs3.streamlit.app/"
+         target="_blank"
+         style="color:var(--gold);font-size:15px;font-weight:600;text-decoration:none;word-break:break-all;">
+        https://resume-ai-screening-mynrd3qwpwnijtjrzhhhs3.streamlit.app/
+      </a>
+      <div style="font-size:13px;color:var(--text2);margin-top:10px;line-height:1.6;">
+        The full platform is publicly accessible at the URL above. No login required.
+        All ML models, datasets, and the interactive dashboard are live.
+      </div>
+    </div>
+  </div>
+
   <!-- ── DEPLOYMENT ── -->
   <div class="section" id="deployment">
-    <div class="section-eyebrow">Section 11.5 · Extra Credit</div>
+    <div class="section-eyebrow">Section 12 · Infrastructure</div>
     <h2>Deployment</h2>
     <div class="section-rule"></div>
 

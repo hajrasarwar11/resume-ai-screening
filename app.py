@@ -639,6 +639,14 @@ code.inline {
 /* Plotly override */
 .js-plotly-plot .plotly { border-radius: 12px; }
 
+/* ── Download / Export buttons — no text-wrap ── */
+.stDownloadButton > button {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-size: 12px !important;
+}
+
 /* ── Sidebar Collapse Button (inside sidebar → shows «) ── */
 [data-testid="stSidebarCollapseButton"] button {
     background: rgba(214,178,94,0.08) !important;
@@ -924,7 +932,9 @@ with st.sidebar:
         "👥 About"
     ]
     if "nav_radio" not in st.session_state:
-        st.session_state.nav_radio = PAGE_OPTIONS[0]
+        st.session_state["nav_radio"] = PAGE_OPTIONS[0]
+    if "pending_nav" in st.session_state:
+        st.session_state["nav_radio"] = st.session_state.pop("pending_nav")
     page = st.radio(
         label="",
         options=PAGE_OPTIONS,
@@ -1850,7 +1860,7 @@ elif page == "🧠 Resume Intelligence":
                     st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
                     if st.button("🚀 Search Full Candidate Pool with this JD →", key="send_jd_to_rec", help="Run this job description against the full 2,400+ resume pool in the Recommendation Engine"):
                         st.session_state.rec_jd_prefill = jd_input
-                        st.session_state.nav_radio = "💼 Recommendation Engine"
+                        st.session_state.pending_nav = "💼 Recommendation Engine"
                         st.rerun()
 
                 except Exception as e:
@@ -1975,7 +1985,7 @@ elif page == "🧠 Resume Intelligence":
                             if st.button("🔍 Find Similar →", key=f"find_sim_{h['id']}", help="Send this resume to Recommendation Engine"):
                                 st.session_state.rec_jd_prefill = h["text"]
                                 st.session_state.rec_prefill_label = h.get("label", f"Resume #{h['id']}")
-                                st.session_state.nav_radio = "💼 Recommendation Engine"
+                                st.session_state.pending_nav = "💼 Recommendation Engine"
                                 st.rerun()
                     with d_right:
                         if h.get("top5"):
@@ -2209,7 +2219,7 @@ elif page == "📊 Candidate Analytics":
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        tab1, tab2, tab3 = st.tabs(["📊  Category Distribution", "📈  Skill Analysis", "🎯  Radar Profile"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊  Category Distribution", "📈  Skill Analysis", "🎯  Radar Profile", "🔴  Live Session", "🔍  Candidate Lookup"])
 
         PLOTLY_LAYOUT = dict(
             paper_bgcolor='rgba(0,0,0,0)',
@@ -2344,6 +2354,162 @@ elif page == "📊 Candidate Analytics":
                 st.plotly_chart(fig_rad, use_container_width=True, config={'displayModeBar': False})
             else:
                 st.markdown("<div style='color:#6B6560;padding:20px 0;'>No data matches the current filter.</div>", unsafe_allow_html=True)
+
+        # ── Tab 4: Live Session ──
+        with tab4:
+            session_history = st.session_state.get("resume_history", [])
+            if not session_history:
+                st.markdown("""
+                <div style='text-align:center;padding:60px 20px;'>
+                    <div style='font-size:2.5rem;margin-bottom:16px;'>🔴</div>
+                    <div style='font-family:"Playfair Display",serif;font-size:1.2rem;color:#F0EDE6;margin-bottom:8px;'>No Live Session Data</div>
+                    <div style='font-size:13px;color:#6B6560;'>Screen some resumes in <strong style="color:#D6B25E;">Resume Intelligence</strong> first — they will appear here in real-time.</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                # Live metrics row
+                roles_seen = [h["role"] for h in session_history]
+                avg_conf = sum(h["conf"] for h in session_history) / len(session_history)
+                avg_ats  = sum(h["ats"]  for h in session_history) / len(session_history)
+                pinned_count = len(st.session_state.get("shortlist", []))
+                lm1, lm2, lm3, lm4 = st.columns(4)
+                for col, val, lbl in zip(
+                    [lm1, lm2, lm3, lm4],
+                    [str(len(session_history)), f"{avg_conf:.0f}%", f"{avg_ats:.0f}%", str(pinned_count)],
+                    ["Screened This Session", "Avg Confidence", "Avg ATS Score", "Shortlisted"]
+                ):
+                    with col:
+                        st.markdown(f"""
+                        <div class='metric-glass'>
+                            <div class='metric-glass-val' style='font-size:1.5rem;'>{val}</div>
+                            <div class='metric-glass-lbl'>{lbl}</div>
+                        </div>""", unsafe_allow_html=True)
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # Role distribution of this session
+                from collections import Counter
+                role_counts = Counter(roles_seen)
+                if role_counts:
+                    lc1, lc2 = st.columns([1.4, 1])
+                    with lc1:
+                        st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;'>Session Role Distribution</div>", unsafe_allow_html=True)
+                        fig_live_roles = go.Figure(go.Bar(
+                            x=list(role_counts.values()), y=list(role_counts.keys()),
+                            orientation='h',
+                            marker=dict(color=list(role_counts.values()),
+                                        colorscale=[[0,'#4A3B28'],[1,'#D6B25E']],
+                                        showscale=False, line=dict(width=0)),
+                            text=list(role_counts.values()), textposition='outside',
+                            textfont=dict(size=11, color='#A89F92')
+                        ))
+                        fig_live_roles.update_layout(
+                            height=max(200, len(role_counts)*40),
+                            margin=dict(l=0,r=50,t=10,b=0),
+                            xaxis=dict(gridcolor='rgba(214,178,94,0.07)', tickfont=dict(size=10)),
+                            yaxis=dict(gridcolor='rgba(0,0,0,0)', tickfont=dict(size=10)),
+                            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                            font=dict(family='Inter', color='#A89F92')
+                        )
+                        st.plotly_chart(fig_live_roles, use_container_width=True, config={'displayModeBar': False})
+
+                    with lc2:
+                        st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;'>Confidence vs ATS (per Resume)</div>", unsafe_allow_html=True)
+                        fig_scatter = go.Figure(go.Scatter(
+                            x=[h["conf"] for h in session_history],
+                            y=[h["ats"] for h in session_history],
+                            mode='markers+text',
+                            text=[h.get("label", f"#{h['id']}") for h in session_history],
+                            textposition='top center',
+                            textfont=dict(size=9, color='#6B6560'),
+                            marker=dict(size=10, color='#D6B25E',
+                                        line=dict(color='rgba(214,178,94,0.3)', width=1),
+                                        opacity=0.8)
+                        ))
+                        fig_scatter.update_layout(
+                            height=260, margin=dict(l=0,r=0,t=10,b=0),
+                            xaxis=dict(title='Confidence %', gridcolor='rgba(214,178,94,0.07)', tickfont=dict(size=9)),
+                            yaxis=dict(title='ATS %', gridcolor='rgba(214,178,94,0.07)', tickfont=dict(size=9)),
+                            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                            font=dict(family='Inter', color='#A89F92')
+                        )
+                        st.plotly_chart(fig_scatter, use_container_width=True, config={'displayModeBar': False})
+
+                # Live candidate table
+                st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin:16px 0 12px;'>Session Candidate Log</div>", unsafe_allow_html=True)
+                for h in reversed(session_history):
+                    is_pinned = any(s["id"] == h["id"] for s in st.session_state.get("shortlist", []))
+                    pin_badge = "<span style='background:rgba(214,178,94,0.15);color:#D6B25E;font-size:9px;padding:2px 7px;border-radius:10px;border:1px solid rgba(214,178,94,0.3);margin-left:8px;'>📌 Shortlisted</span>" if is_pinned else ""
+                    st.markdown(f"""
+                    <div class='rank-row'>
+                        <div>
+                            <span style='color:#F0EDE6;font-weight:600;font-size:13px;'>{h.get("label", f"Resume #{h['id']}")}</span>{pin_badge}
+                            <div style='font-size:11px;color:#8C7A5B;margin-top:2px;'>{h["role"]} &nbsp;·&nbsp; {h["timestamp"]}</div>
+                        </div>
+                        <div style='text-align:right;'>
+                            <div style='font-size:13px;color:#D6B25E;font-weight:700;'>{h["conf"]}%</div>
+                            <div style='font-size:10px;color:#6B6560;'>Conf &nbsp;|&nbsp; ATS {h["ats"]}%</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+        # ── Tab 5: Candidate Lookup ──
+        with tab5:
+            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;'>Search & Filter Candidate Pool</div>", unsafe_allow_html=True)
+            lu_c1, lu_c2, lu_c3 = st.columns([2, 1.5, 1])
+            with lu_c1:
+                lu_skill = st.text_input("Skill keyword", placeholder="e.g. Python, Machine Learning, SQL", key="lu_skill")
+            with lu_c2:
+                all_lu_cats = sorted(resume_df['Category'].unique().tolist())
+                lu_cat = st.selectbox("Role Category", ["All"] + all_lu_cats, key="lu_cat")
+            with lu_c3:
+                lu_top = st.selectbox("Show top", [10, 25, 50, 100], key="lu_top")
+
+            lu_df = resume_df.copy()
+            if lu_cat != "All":
+                lu_df = lu_df[lu_df['Category'] == lu_cat]
+            if lu_skill.strip():
+                kw_lu = lu_skill.strip().lower()
+                lu_df = lu_df[lu_df['extracted_skills'].apply(lambda s: any(kw_lu in str(x).lower() for x in (s if isinstance(s, list) else [])))]
+
+            lu_df = lu_df.head(lu_top)
+            st.markdown(f"<div style='font-size:12px;color:#8C7A5B;margin-bottom:12px;'>Found <span style='color:#D6B25E;font-weight:600;'>{len(lu_df):,}</span> candidates</div>", unsafe_allow_html=True)
+
+            if lu_df.empty:
+                st.markdown("<div style='color:#6B6560;padding:20px 0;'>No candidates match the current filters.</div>", unsafe_allow_html=True)
+            else:
+                for idx, (_, row) in enumerate(lu_df.iterrows()):
+                    skills_preview = ", ".join([str(s) for s in (row.get("extracted_skills") or [])[:6]])
+                    exp_val = f"{row.get('Experience Years', 0):.0f} yrs"
+                    edu_map = {0: "High School", 1: "Bachelor's", 2: "Master's", 3: "PhD"}
+                    edu_lbl = edu_map.get(int(row.get('education_level', 0)), "—")
+                    st.markdown(f"""
+                    <div class='glass-card-sm' style='margin-bottom:8px;'>
+                        <div style='display:flex;justify-content:space-between;align-items:flex-start;'>
+                            <div>
+                                <div style='font-size:13px;font-weight:600;color:#F0EDE6;margin-bottom:4px;'>
+                                    Candidate #{idx+1} &nbsp;<span style='font-size:10px;font-weight:400;color:#6B6560;'>·&nbsp; {row.get("Category","—")}</span>
+                                </div>
+                                <div style='font-size:11px;color:#8C7A5B;'>{skills_preview or "No skills extracted"}</div>
+                            </div>
+                            <div style='text-align:right;flex-shrink:0;margin-left:16px;'>
+                                <div style='font-size:12px;color:#D6B25E;font-weight:600;'>{exp_val}</div>
+                                <div style='font-size:10px;color:#6B6560;'>{edu_lbl}</div>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # Export lookup results
+                lu_export = lu_df[['Category','Experience Years','education_level','skill_count']].copy()
+                lu_export.columns = ['Role Category','Experience Years','Education Level','Skill Count']
+                st.download_button(
+                    label="⬇ Export Lookup Results (CSV)",
+                    data=lu_export.to_csv(index=False).encode("utf-8"),
+                    file_name="airecruit_lookup.csv",
+                    mime="text/csv",
+                    key="lu_export_btn"
+                )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
