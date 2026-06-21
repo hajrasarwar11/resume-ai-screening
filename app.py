@@ -4317,14 +4317,21 @@ elif page == "🚀 Recruiter Workspace":
                             f"<span style='font-size:9px;color:#6B6560;text-transform:uppercase;letter-spacing:1.5px;'>Source</span>"
                             f"<span style='font-size:12px;color:#A89F92;margin-left:8px;'>{c.get('source','—')}</span>"
                             f"</div>"
-                            f"<div style='margin-bottom:8px;'>{skills_html if skills_html else '<span style=\"color:#6B6560;font-size:12px;\">No skills listed</span>'}</div>"
+                            "<div style='margin-bottom:8px;'>"
+                            + (skills_html if skills_html else "<span style='color:#6B6560;font-size:12px;'>No skills listed</span>")
+                            + "</div>"
                             f"<div style='font-size:12px;color:#A89F92;'>"
                             f"🎓 {c.get('edu','—')} &nbsp;·&nbsp; "
                             f"⏱ {c.get('exp',0)} yrs &nbsp;·&nbsp; "
                             f"🎯 {c.get('conf',0)}% confidence &nbsp;·&nbsp; "
                             f"💰 {c.get('salary','—')}"
                             f"</div>"
-                            f"{'<div style=\"font-size:12px;color:#A89F92;margin-top:6px;\">✉️ ' + c.get('email','') + '</div>' if c.get('email') else ''}",
+                            + (
+                                "<div style='font-size:12px;color:#A89F92;margin-top:6px;'>✉️ "
+                                + c.get('email','')
+                                + "</div>"
+                                if c.get('email') else ""
+                            ),
                             unsafe_allow_html=True
                         )
                     with ex2:
