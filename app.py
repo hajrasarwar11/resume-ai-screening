@@ -1764,6 +1764,12 @@ elif page == "🧠 Resume Intelligence":
                     } for i, r in enumerate(ranked)]).to_csv(index=False).encode("utf-8")
                     st.download_button("⬇ Download Ranked Results CSV", ranked_csv, "ranked_candidates.csv", "text/csv", key="ranked_dl")
 
+                    st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+                    if st.button("🚀 Search Full Candidate Pool with this JD →", key="send_jd_to_rec", help="Run this job description against the full 2,400+ resume pool in the Recommendation Engine"):
+                        st.session_state.rec_jd_prefill = jd_input
+                        st.session_state.nav_radio = "💼 Recommendation Engine"
+                        st.rerun()
+
                 except Exception as e:
                     st.error(f"Ranking error: {e}")
             elif rank_btn:
@@ -1868,6 +1874,13 @@ elif page == "🧠 Resume Intelligence":
                                 f"<div style='display:flex;flex-wrap:wrap;'>{skills_span}</div>",
                                 unsafe_allow_html=True
                             )
+                    with d_left:
+                        st.markdown("<div style='margin-top:14px;'></div>", unsafe_allow_html=True)
+                        if st.button("🔍 Find Similar Candidates →", key=f"find_sim_{h['id']}", help="Send this resume to Recommendation Engine to find similar candidates from the full pool"):
+                            st.session_state.rec_jd_prefill = h["text"]
+                            st.session_state.rec_prefill_label = h.get("label", f"Resume #{h['id']}")
+                            st.session_state.nav_radio = "💼 Recommendation Engine"
+                            st.rerun()
                     with d_right:
                         if h.get("top5"):
                             st.markdown(
@@ -2298,7 +2311,21 @@ elif page == "💼 Recommendation Engine":
         col_cfg, col_res = st.columns([1, 1.2], gap="large")
         with col_cfg:
             st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;'>Job Description</div>", unsafe_allow_html=True)
-            if 'jobs' in data:
+            _rec_prefill      = st.session_state.pop("rec_jd_prefill", "")
+            _rec_prefill_lbl  = st.session_state.pop("rec_prefill_label", "")
+            if _rec_prefill:
+                st.markdown(
+                    f"<div style='background:rgba(107,159,212,0.08);border:1px solid rgba(107,159,212,0.3);"
+                    f"border-radius:8px;padding:9px 14px;font-size:12px;color:#6B9FD4;margin-bottom:12px;'>"
+                    f"🔍 Pre-filled from History" + (f": <b>{_rec_prefill_lbl}</b>" if _rec_prefill_lbl else "") +
+                    f" — edit below or clear to use a job description instead.</div>",
+                    unsafe_allow_html=True
+                )
+                jd_text = st.text_area("Resume / Job Description", height=180,
+                                        label_visibility="collapsed",
+                                        key="rec_jd_text",
+                                        value=_rec_prefill)
+            elif 'jobs' in data:
                 job_titles = data['jobs']['title'].tolist()
                 sel_title  = st.selectbox("Select Position", job_titles[:100], label_visibility="collapsed")
                 job_row    = data['jobs'][data['jobs']['title'] == sel_title].iloc[0]
@@ -2315,7 +2342,9 @@ elif page == "💼 Recommendation Engine":
                 """, unsafe_allow_html=True)
             else:
                 jd_text = st.text_area("Job Description", height=180, label_visibility="collapsed",
-                                        placeholder="Paste job description here...")
+                                        placeholder="Paste job description here...",
+                                        key="rec_jd_text",
+                                        value="")
 
             top_n = st.slider("Candidates to Return", 3, 15, 8)
             find_btn = st.button("Find Best Candidates  →", key="rec_find")
