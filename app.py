@@ -1665,8 +1665,8 @@ elif page == "🧠 Resume Intelligence":
                 unsafe_allow_html=True
             )
 
-            # ── header row: buttons on their own separate row ──
-            h_col_exp, h_col_pin, h_col_btn = st.columns(3)
+            # ── header row: two export buttons side by side ──
+            h_col_exp, h_col_pin = st.columns(2)
             with h_col_exp:
                 export_rows = []
                 for h in history:
@@ -1720,11 +1720,12 @@ elif page == "🧠 Resume Intelligence":
                         "<div style='font-size:12px;color:#4A4540;padding-top:8px;text-align:center;'>📌 No shortlist</div>",
                         unsafe_allow_html=True
                     )
-            with h_col_btn:
-                if st.button("🗑 Clear History", key="clear_history"):
-                    st.session_state.resume_history = []
-                    st.session_state.shortlist = []
-                    st.rerun()
+            # ── destructive action: full-width below exports ──
+            st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
+            if st.button("🗑 Clear All History & Shortlist", key="clear_history", use_container_width=True):
+                st.session_state.resume_history = []
+                st.session_state.shortlist = []
+                st.rerun()
 
             st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
@@ -2097,7 +2098,7 @@ elif page == "⚙️ ML Models":
          ["GridSearchCV", "RandomizedSearchCV", "Pipeline Safety", "Best Estimator Saved"], False),
     ]
 
-    ml_tab1, ml_tab2 = st.tabs(["📋  Model Cards", "⚡  Live Comparison"])
+    ml_tab1, ml_tab2, ml_tab3 = st.tabs(["📋  Model Cards", "🎯  Live Predictor", "📊  Accuracy Breakdown"])
 
     with ml_tab1:
         st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
@@ -2135,49 +2136,222 @@ elif page == "⚙️ ML Models":
             st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
 
     with ml_tab2:
-        st.markdown("<div style='font-size:12px;color:#8C7A5B;margin-bottom:16px;'>Upload a PDF or paste resume text to compare all 4 classifiers side-by-side.</div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div class='info-banner'>
+            Paste any resume text and all 4 models run simultaneously.
+            Results show as live confidence gauges — see where models agree or diverge.
+        </div>
+        """, unsafe_allow_html=True)
+
         import pdfplumber as _pdf_lc, io as _io_lc
-        lc_pdf  = st.file_uploader("Upload Resume PDF", type=["pdf"], key="lc_pdf")
-        lc_text = st.text_area("Or paste resume text", height=150, placeholder="Paste any resume text to compare all models...", key="lc_text")
-        if lc_pdf:
-            with _pdf_lc.open(_io_lc.BytesIO(lc_pdf.read())) as _plc:
-                _lc_extracted = "\n".join(pg.extract_text() or "" for pg in _plc.pages)
-            if _lc_extracted.strip():
-                lc_text = _lc_extracted
-                st.success(f"PDF loaded: {len(lc_text.split())} words extracted")
-        lc_btn  = st.button("Compare All Models →", key="lc_run")
-        if lc_btn and lc_text.strip():
-            model_keys = [('svm','SVM'), ('rf','Random Forest'), ('lr','Logistic Reg.'), ('xgb','XGBoost')]
-            rows = []
-            for mk, mname in model_keys:
+        lp_col1, lp_col2 = st.columns([3, 1])
+        with lp_col1:
+            lc_text = st.text_area("Paste resume text", height=160,
+                placeholder="Paste any resume — e.g. 'Python developer with 4 years experience in machine learning, TensorFlow, AWS...'",
+                key="lc_text")
+        with lp_col2:
+            st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
+            lc_pdf = st.file_uploader("Or upload PDF", type=["pdf"], key="lc_pdf", label_visibility="visible")
+            if lc_pdf:
+                with _pdf_lc.open(_io_lc.BytesIO(lc_pdf.read())) as _plc:
+                    _lc_extracted = "\n".join(pg.extract_text() or "" for pg in _plc.pages)
+                if _lc_extracted.strip():
+                    lc_text = _lc_extracted
+                    st.success(f"✓ {len(lc_text.split())} words")
+
+        lc_btn = st.button("⚡ Run All 4 Models Simultaneously", key="lc_run", use_container_width=True)
+
+        if lc_btn and lc_text and lc_text.strip():
+            model_keys = [('svm','SVM','#D6B25E'), ('lr','Logistic Reg.','#8C7A5B'),
+                          ('rf','Random Forest','#A89F92'), ('xgb','XGBoost','#6B6560')]
+            result_cards = []
+            for mk, mname, color in model_keys:
                 if mk in models:
                     try:
                         m = models[mk]
                         input_df_lc = build_input_df(lc_text)
                         enc  = m.predict(input_df_lc)[0]
                         prob = m.predict_proba(input_df_lc)[0]
-                        rows.append({
-                            "Model": mname,
-                            "Predicted Role": CATEGORY_MAP.get(enc, f"Cat {enc}"),
-                            "Confidence": f"{prob.max()*100:.1f}%",
-                            "2nd Best": CATEGORY_MAP.get(np.argsort(prob)[::-1][1], "—"),
-                            "2nd Conf.": f"{sorted(prob)[-2]*100:.1f}%" if len(prob) > 1 else "—",
+                        sorted_idx = np.argsort(prob)[::-1]
+                        result_cards.append({
+                            "model": mname, "color": color,
+                            "role": CATEGORY_MAP.get(enc, f"Cat {enc}"),
+                            "conf": prob.max() * 100,
+                            "top3": [(CATEGORY_MAP.get(sorted_idx[i], f"Cat {sorted_idx[i]}"),
+                                      prob[sorted_idx[i]] * 100) for i in range(min(3, len(prob)))],
                         })
                     except Exception as e:
-                        rows.append({"Model": mname, "Predicted Role": f"Error: {e}", "Confidence": "—", "2nd Best": "—", "2nd Conf.": "—"})
-            if rows:
-                cmp_df = pd.DataFrame(rows)
+                        result_cards.append({"model": mname, "color": color,
+                                             "role": "Error", "conf": 0, "top3": [], "err": str(e)})
+
+            if result_cards:
                 st.markdown("<br>", unsafe_allow_html=True)
-                # Highlight table
-                header_html = "".join(f"<th style='padding:10px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(214,178,94,0.6);border-bottom:1px solid rgba(214,178,94,0.15);'>{c}</th>" for c in cmp_df.columns)
-                rows_html = ""
-                for i, r in cmp_df.iterrows():
-                    bg = "rgba(214,178,94,0.06)" if r["Model"] == "SVM" else "transparent"
-                    cells = "".join(f"<td style='padding:10px 14px;font-size:13px;color:#F0EDE6;border-bottom:1px solid rgba(214,178,94,0.06);'>{v}</td>" for v in r)
-                    rows_html += f"<tr style='background:{bg};'>{cells}</tr>"
-                st.markdown(f"<div class='glass-card' style='overflow:auto;'><table style='width:100%;border-collapse:collapse;'><thead><tr>{header_html}</tr></thead><tbody>{rows_html}</tbody></table></div>", unsafe_allow_html=True)
+                # Check consensus
+                roles = [r["role"] for r in result_cards if r.get("conf", 0) > 0]
+                consensus = max(set(roles), key=roles.count) if roles else "—"
+                agree_count = roles.count(consensus)
+                agree_color = "#D6B25E" if agree_count == len(result_cards) else "#8C7A5B" if agree_count >= 2 else "#6B6560"
+                st.markdown(f"""
+                <div style='background:rgba(214,178,94,0.06);border:1px solid rgba(214,178,94,0.25);
+                            border-radius:10px;padding:16px 22px;margin-bottom:20px;
+                            display:flex;align-items:center;justify-content:space-between;'>
+                    <div>
+                        <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:4px;'>Model Consensus</div>
+                        <div style='font-family:"Playfair Display",serif;font-size:1.15rem;font-weight:700;color:{agree_color};'>{consensus}</div>
+                    </div>
+                    <div style='text-align:right;'>
+                        <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8C7A5B;margin-bottom:4px;'>Agreement</div>
+                        <div style='font-size:1.4rem;font-weight:700;color:{agree_color};'>{agree_count}/{len(result_cards)} models</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                rc1, rc2 = st.columns(2)
+                for idx, r in enumerate(result_cards):
+                    col = rc1 if idx % 2 == 0 else rc2
+                    with col:
+                        top3_html = ""
+                        for i, (role_n, pct) in enumerate(r.get("top3", [])):
+                            bar_w = pct
+                            top3_html += f"""
+                            <div style='margin-bottom:10px;'>
+                                <div style='display:flex;justify-content:space-between;margin-bottom:3px;'>
+                                    <span style='font-size:11px;color:{"#F0EDE6" if i==0 else "#A89F92"};font-weight:{"600" if i==0 else "400"};'>{role_n}</span>
+                                    <span style='font-size:11px;color:{r["color"]};font-weight:700;'>{pct:.1f}%</span>
+                                </div>
+                                <div style='height:4px;background:rgba(214,178,94,0.08);border-radius:2px;overflow:hidden;'>
+                                    <div style='height:100%;width:{bar_w:.1f}%;background:{r["color"]};border-radius:2px;'></div>
+                                </div>
+                            </div>"""
+
+                        conf_ring_pct = r["conf"]
+                        st.markdown(f"""
+                        <div style='background:rgba(255,255,255,0.025);border:1px solid rgba(214,178,94,0.2);
+                                    border-left:3px solid {r["color"]};border-radius:12px;padding:20px;margin-bottom:14px;'>
+                            <div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;'>
+                                <div>
+                                    <div style='font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#6B6560;margin-bottom:4px;'>{r["model"]}</div>
+                                    <div style='font-family:"Playfair Display",serif;font-size:1rem;font-weight:700;color:{r["color"]};'>{r["role"]}</div>
+                                </div>
+                                <div style='background:rgba(214,178,94,0.1);border:1px solid rgba(214,178,94,0.25);
+                                            border-radius:50%;width:52px;height:52px;display:flex;align-items:center;
+                                            justify-content:center;flex-direction:column;flex-shrink:0;'>
+                                    <div style='font-size:12px;font-weight:700;color:{r["color"]};line-height:1;'>{conf_ring_pct:.0f}%</div>
+                                    <div style='font-size:8px;color:#6B6560;'>conf</div>
+                                </div>
+                            </div>
+                            {top3_html}
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                # Plotly grouped bar for quick visual comparison
+                fig_cmp = go.Figure()
+                for i, r in enumerate(result_cards):
+                    top3_roles = [t[0] for t in r.get("top3", [])]
+                    top3_vals  = [t[1] for t in r.get("top3", [])]
+                    fig_cmp.add_trace(go.Bar(
+                        name=r["model"], x=top3_roles, y=top3_vals,
+                        marker_color=r["color"], opacity=0.85,
+                        text=[f"{v:.1f}%" for v in top3_vals],
+                        textposition='outside', textfont=dict(size=9, color='#A89F92')
+                    ))
+                fig_cmp.update_layout(
+                    barmode='group', height=300,
+                    margin=dict(l=0, r=0, t=24, b=0),
+                    xaxis=dict(tickfont=dict(size=10, color='#A89F92'), gridcolor='rgba(0,0,0,0)'),
+                    yaxis=dict(title='Confidence %', gridcolor='rgba(214,178,94,0.07)',
+                               tickfont=dict(size=9, color='#A89F92')),
+                    legend=dict(font=dict(size=10, color='#A89F92')),
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(family='Inter', color='#A89F92'),
+                    title=dict(text="Top-3 Predictions — All Models", font=dict(size=12, color='#8C7A5B'), x=0.01)
+                )
+                st.plotly_chart(fig_cmp, use_container_width=True, config={'displayModeBar': False})
+
         elif lc_btn:
-            st.warning("Please paste some resume text first.")
+            st.warning("Paste a resume first.")
+
+    with ml_tab3:
+        st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
+        acc_models = ["SVM", "Logistic Reg.", "Random Forest", "XGBoost"]
+        acc_vals   = [98.75, 99.22, 98.44, 97.35]
+        prec_vals  = [98.76, 99.30, 98.50, 97.40]
+        rec_vals   = [98.75, 99.22, 98.44, 97.35]
+        f1_vals    = [98.74, 99.20, 98.42, 97.32]
+
+        acc_tab_a, acc_tab_b = st.columns([1.8, 1])
+        with acc_tab_a:
+            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;'>All Metrics — Grouped Comparison</div>", unsafe_allow_html=True)
+            fig_grp = go.Figure()
+            metrics_grp = ["Accuracy", "Precision", "Recall", "F1-Score"]
+            vals_grp    = [acc_vals, prec_vals, rec_vals, f1_vals]
+            shades = ['#D6B25E','#A89F92','#8C7A5B','#6B6560']
+            for metric_name, mvals, shade in zip(metrics_grp, vals_grp, shades):
+                fig_grp.add_trace(go.Bar(
+                    name=metric_name, x=acc_models, y=mvals,
+                    marker_color=shade, opacity=0.88,
+                    text=[f"{v:.2f}%" for v in mvals],
+                    textposition='outside', textfont=dict(size=9, color='#A89F92')
+                ))
+            fig_grp.update_layout(
+                barmode='group', height=340,
+                margin=dict(l=0, r=0, t=10, b=0),
+                xaxis=dict(tickfont=dict(size=11, color='#A89F92'), gridcolor='rgba(0,0,0,0)'),
+                yaxis=dict(range=[96, 100.5], gridcolor='rgba(214,178,94,0.07)',
+                           tickfont=dict(size=9, color='#A89F92'), ticksuffix='%'),
+                legend=dict(font=dict(size=10, color='#A89F92'),
+                            orientation='h', y=1.08),
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(family='Inter', color='#A89F92')
+            )
+            st.plotly_chart(fig_grp, use_container_width=True, config={'displayModeBar': False})
+
+        with acc_tab_b:
+            st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;'>Accuracy Ranking</div>", unsafe_allow_html=True)
+            rank_data = sorted(zip(acc_models, acc_vals), key=lambda x: x[1], reverse=True)
+            rank_icons = ["🥇", "🥈", "🥉", "④"]
+            for ri, (rmodel, racc) in enumerate(rank_data):
+                border = "border-color:rgba(214,178,94,0.5);" if ri == 0 else ""
+                bg = "background:rgba(214,178,94,0.05);" if ri == 0 else ""
+                st.markdown(f"""
+                <div style='background:rgba(255,255,255,0.02);border:1px solid rgba(214,178,94,0.12);
+                            {border}{bg}border-radius:10px;padding:14px 16px;margin-bottom:8px;
+                            display:flex;align-items:center;justify-content:space-between;'>
+                    <div style='display:flex;align-items:center;gap:12px;'>
+                        <span style='font-size:1.3rem;'>{rank_icons[ri]}</span>
+                        <div>
+                            <div style='font-size:13px;font-weight:600;color:#F0EDE6;'>{rmodel}</div>
+                            <div style='font-size:10px;color:#6B6560;margin-top:1px;'>Rank #{ri+1}</div>
+                        </div>
+                    </div>
+                    <div style='font-family:"Playfair Display",serif;font-size:1.1rem;font-weight:700;color:#D6B25E;'>{racc:.2f}%</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        # Training params table
+        st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:11px;color:#D6B25E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;'>Hyperparameter Configuration</div>", unsafe_allow_html=True)
+        param_rows = [
+            ("SVM", "LinearSVC + CalibratedCV", "linear kernel", "GridSearchCV cv=5", "Produces probabilities via calibration for top-5 output"),
+            ("Logistic Reg.", "LogisticRegression", "C=1.0, L2, saga", "GridSearchCV cv=5", "Best overall at 99.22% — strong regularisation on sparse TF-IDF"),
+            ("Random Forest", "RandomForestClassifier", "n_estimators=200, max_depth=30", "GridSearchCV cv=5", "Feature importances extracted; robust to noisy text features"),
+            ("XGBoost", "XGBClassifier", "lr=0.1, depth=6, n_est=300", "RandomizedSearchCV n_iter=20 cv=3", "Fastest training; competitive on large feature spaces"),
+        ]
+        hdr = ["Model", "Class", "Key Params", "Search", "Notes"]
+        hdr_html = "".join(f"<th style='padding:9px 12px;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(214,178,94,0.7);border-bottom:1px solid rgba(214,178,94,0.15);text-align:left;'>{h}</th>" for h in hdr)
+        body_html = ""
+        for i, pr in enumerate(param_rows):
+            bg_r = "rgba(214,178,94,0.04)" if i == 0 else "transparent"
+            cells = "".join(f"<td style='padding:10px 12px;font-size:12px;color:#A89F92;border-bottom:1px solid rgba(214,178,94,0.06);'>{v}</td>" for v in pr)
+            body_html += f"<tr style='background:{bg_r};'>{cells}</tr>"
+        st.markdown(f"""
+        <div style='background:rgba(255,255,255,0.02);border:1px solid rgba(214,178,94,0.14);border-radius:12px;overflow:hidden;'>
+            <table style='width:100%;border-collapse:collapse;'>
+                <thead><tr>{hdr_html}</tr></thead>
+                <tbody>{body_html}</tbody>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2869,7 +3043,7 @@ elif page == "📈 Performance Metrics":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    tab1, tab2, tab3, tab4 = st.tabs(["📊  Model Comparison", "📈  Progress View", "🗂️  Confusion Matrix", "🔍  Per-Category"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📊  Model Comparison", "🏆  Leaderboard", "🗂️  Confusion Matrix", "🔍  Per-Category"])
 
     PLOTLY_BG = dict(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
                      font=dict(family='Inter', color='#A89F92'))
@@ -2931,23 +3105,87 @@ elif page == "📈 Performance Metrics":
             st.markdown("</div>", unsafe_allow_html=True)
 
     with tab2:
-        st.markdown("<div style='margin-top:8px;'>", unsafe_allow_html=True)
-        for metric in ['Accuracy','Precision','Recall','F1-Score']:
-            st.markdown(f"<div style='font-size:12px;color:#D6B25E;text-transform:uppercase;letter-spacing:2px;margin:20px 0 10px;'>{metric}</div>", unsafe_allow_html=True)
-            for _, row in comp.iterrows():
-                val = row[metric] * 100
-                st.markdown(f"""
-                <div class='prog-row'>
-                    <div class='prog-hdr'>
-                        <span class='prog-name' style='font-size:12px;'>{row["Model"]}</span>
-                        <span class='prog-val' style='font-size:12px;'>{val:.2f}%</span>
+        st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
+
+        # Leaderboard ranking cards
+        lb_medals = ["🥇", "🥈", "🥉", "④"]
+        lb_colors = ["#D6B25E", "#A89F92", "#8C7A5B", "#6B6560"]
+        lb_data = list(comp.iterrows())
+
+        for ri, (_, row) in enumerate(lb_data):
+            medal = lb_medals[ri]
+            color = lb_colors[ri]
+            is_top = ri == 0
+            border_style = "border-color:rgba(214,178,94,0.55);box-shadow:0 0 20px rgba(214,178,94,0.07);" if is_top else ""
+            bg_style = "background:rgba(214,178,94,0.04);" if is_top else "background:rgba(255,255,255,0.015);"
+
+            metrics_html = ""
+            for m_name, m_key in [("ACC", "Accuracy"), ("PREC", "Precision"), ("REC", "Recall"), ("F1", "F1-Score")]:
+                val = row[m_key]
+                bar_w = (val - 0.94) / (1.0 - 0.94) * 100
+                bar_w = max(0, min(100, bar_w))
+                metrics_html += f"""
+                <div style='flex:1;min-width:80px;'>
+                    <div style='font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#6B6560;margin-bottom:3px;'>{m_name}</div>
+                    <div style='font-size:13px;font-weight:700;color:{color};margin-bottom:4px;'>{val*100:.2f}%</div>
+                    <div style='height:3px;background:rgba(214,178,94,0.08);border-radius:2px;'>
+                        <div style='height:100%;width:{bar_w:.1f}%;background:{color};border-radius:2px;'></div>
                     </div>
-                    <div class='prog-track'>
-                        <div class='prog-fill' style='width:{val:.2f}%;'></div>
+                </div>"""
+
+            best_tag = f"<span style='background:#D6B25E;color:#0B0D10;font-size:8px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:1px;'>BEST MODEL</span>" if is_top else ""
+
+            st.markdown(f"""
+            <div style='border:1px solid rgba(214,178,94,0.15);{border_style}{bg_style}
+                        border-radius:14px;padding:18px 22px;margin-bottom:12px;'>
+                <div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;'>
+                    <div style='display:flex;align-items:center;gap:14px;'>
+                        <span style='font-size:2rem;line-height:1;'>{medal}</span>
+                        <div>
+                            <div style='font-family:"Playfair Display",serif;font-size:1.05rem;font-weight:700;color:#F0EDE6;'>{row["Model"]}</div>
+                            <div style='font-size:10px;color:#6B6560;margin-top:2px;'>Rank #{ri+1} · {"Production Model" if is_top else "Challenger"}</div>
+                        </div>
+                    </div>
+                    <div style='display:flex;align-items:center;gap:10px;'>
+                        {best_tag}
+                        <div style='text-align:right;'>
+                            <div style='font-size:8px;color:#6B6560;text-transform:uppercase;letter-spacing:1px;'>Overall Score</div>
+                            <div style='font-size:1.3rem;font-weight:700;color:{color};'>{((row["Accuracy"]+row["Precision"]+row["Recall"]+row["F1-Score"])/4)*100:.2f}%</div>
+                        </div>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+                <div style='display:flex;gap:16px;flex-wrap:wrap;'>{metrics_html}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Animated comparison chart: metrics on X, one bar per model
+        st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
+        fig_lb = go.Figure()
+        metric_labels = ["Accuracy", "Precision", "Recall", "F1-Score"]
+        for ri, (_, row) in enumerate(lb_data):
+            fig_lb.add_trace(go.Scatterpolar(
+                r=[row[m]*100 for m in metric_labels] + [row[metric_labels[0]]*100],
+                theta=metric_labels + [metric_labels[0]],
+                fill='toself', name=row['Model'],
+                line=dict(color=lb_colors[ri], width=2),
+                fillcolor=lb_colors[ri], opacity=0.12
+            ))
+        fig_lb.update_layout(
+            polar=dict(
+                bgcolor='rgba(0,0,0,0)',
+                radialaxis=dict(visible=True, range=[96, 100],
+                               ticksuffix='%', tickfont=dict(size=8, color='#6B6560'),
+                               gridcolor='rgba(214,178,94,0.1)'),
+                angularaxis=dict(tickfont=dict(size=12, family='Playfair Display', color='#A89F92'))
+            ),
+            showlegend=True, height=340,
+            legend=dict(font=dict(family='Inter', size=11, color='#A89F92'),
+                        orientation='h', y=-0.05),
+            margin=dict(l=20, r=20, t=20, b=20),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(family='Inter', color='#A89F92')
+        )
+        st.plotly_chart(fig_lb, use_container_width=True, config={'displayModeBar': False})
 
     with tab3:
         if os.path.exists('plots/confusion_matrix.png'):
